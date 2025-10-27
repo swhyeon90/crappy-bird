@@ -1,19 +1,14 @@
 import { Link } from '@tanstack/react-router'
 
-import TanChatAIAssistant from './example-AIAssistant.tsx'
-
 import { useState } from 'react'
 import {
   ChevronDown,
   ChevronRight,
-  Guitar,
   Home,
   Menu,
-  MessagesSquare,
   Network,
   SquareFunction,
   StickyNote,
-  Store,
   X,
 } from 'lucide-react'
 
@@ -174,51 +169,8 @@ export default function Header() {
             </div>
           )}
 
-          <Link
-            to="/demo/tanchat"
-            onClick={() => setIsOpen(false)}
-            className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-800 transition-colors mb-2"
-            activeProps={{
-              className:
-                'flex items-center gap-3 p-3 rounded-lg bg-cyan-600 hover:bg-cyan-700 transition-colors mb-2',
-            }}
-          >
-            <MessagesSquare size={20} />
-            <span className="font-medium">Chat</span>
-          </Link>
-
-          <Link
-            to="/example/guitars"
-            onClick={() => setIsOpen(false)}
-            className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-800 transition-colors mb-2"
-            activeProps={{
-              className:
-                'flex items-center gap-3 p-3 rounded-lg bg-cyan-600 hover:bg-cyan-700 transition-colors mb-2',
-            }}
-          >
-            <Guitar size={20} />
-            <span className="font-medium">Guitar Demo</span>
-          </Link>
-
-          <Link
-            to="/demo/store"
-            onClick={() => setIsOpen(false)}
-            className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-800 transition-colors mb-2"
-            activeProps={{
-              className:
-                'flex items-center gap-3 p-3 rounded-lg bg-cyan-600 hover:bg-cyan-700 transition-colors mb-2',
-            }}
-          >
-            <Store size={20} />
-            <span className="font-medium">Store</span>
-          </Link>
-
           {/* Demo Links End */}
         </nav>
-
-        <div className="p-4 border-t border-gray-700 bg-gray-800 flex flex-col gap-2">
-          <TanChatAIAssistant />
-        </div>
       </aside>
     </>
   )
