@@ -1,5 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { FormEvent, useEffect, useState } from 'react'
+import { type CSSProperties, FormEvent, useEffect, useRef, useState } from 'react'
 import {
   type CrappyBirdInput,
   type CrappyBirdResponse,
@@ -15,18 +15,8 @@ import {
 import CrappyBirdFullBody from '../resources/images/full-body-temp.png'
 
 type InteractionRecord =
-  | {
-      id: string
-      type: 'chat'
-      message: string
-      response: CrappyBirdResponse
-    }
-  | {
-      id: string
-      type: 'action'
-      action: UserAction
-      response: CrappyBirdResponse
-    }
+  | { id: string; type: 'chat'; message: string; response: CrappyBirdResponse }
+  | { id: string; type: 'action'; action: UserAction; response: CrappyBirdResponse }
 
 type InteractionIntent =
   | { type: 'chat'; message: string }
@@ -34,9 +24,28 @@ type InteractionIntent =
 
 const ACTIONS: UserAction[] = ['poke', 'feed crumb']
 const DEFAULT_CHAT_ACTION: UserAction = 'none'
+const clampIntimacy = (v: number) => Math.min(INTIMACY_MAX, Math.max(INTIMACY_MIN, v))
 
-const clampIntimacy = (value: number) =>
-  Math.min(INTIMACY_MAX, Math.max(INTIMACY_MIN, value))
+const BIRD_ANIM: Partial<Record<string, { cls: string; ms: number }>> = {
+  blink:       { cls: 'bird-blink',       ms: 600  },
+  flinch:      { cls: 'bird-flinch',      ms: 700  },
+  tilt_head:   { cls: 'bird-tilt',        ms: 1000 },
+  peck:        { cls: 'bird-peck',        ms: 900  },
+  shift:       { cls: 'bird-shift',       ms: 800  },
+  look_away:   { cls: 'bird-shift',       ms: 800  },
+  step_back:   { cls: 'bird-step-back',   ms: 900  },
+  lean_closer: { cls: 'bird-lean',        ms: 1100 },
+  settle_down: { cls: 'bird-settle',      ms: 1100 },
+  peck_gently: { cls: 'bird-peck-gentle', ms: 1300 },
+}
+
+function intimacyLabel(level: number) {
+  if (level < 100) return 'distant'
+  if (level < 300) return 'wary'
+  if (level < 600) return 'familiar'
+  if (level < 900) return 'comfortable'
+  return 'trusting'
+}
 
 export const Route = createFileRoute('/')({ component: App })
 
@@ -48,264 +57,620 @@ function App() {
   const [error, setError] = useState<string | null>(null)
   const [interactions, setInteractions] = useState<InteractionRecord[]>([])
   const [intimacyLevel, setIntimacyLevel] = useState(() => getIntimacy())
-  const [manualIntimacy, setManualIntimacy] = useState(() =>
-    String(getIntimacy()),
-  )
-  const interactionLog = [...interactions].reverse()
+  const [manualIntimacy, setManualIntimacy] = useState(() => String(getIntimacy()))
+  const [birdAnim, setBirdAnim] = useState('bird-idle')
+  const [showCrumb, setShowCrumb] = useState(false)
+  const [debugOpen, setDebugOpen] = useState(false)
+  const animTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+
   const latestResponse =
     interactions.length > 0 ? interactions[interactions.length - 1].response : null
+  const interactionLog = [...interactions].reverse()
+
+  useEffect(() => { setIntimacyLevel(getIntimacy()) }, [])
+  useEffect(() => { setManualIntimacy(String(intimacyLevel)) }, [intimacyLevel])
 
   useEffect(() => {
-    setIntimacyLevel(getIntimacy())
-  }, [])
+    if (!latestResponse?.action?.length) return
+    const match = latestResponse.action.map((a) => BIRD_ANIM[a]).find(Boolean)
+    if (!match) return
+    if (animTimer.current) clearTimeout(animTimer.current)
+    setBirdAnim(match.cls)
+    animTimer.current = setTimeout(() => setBirdAnim('bird-idle'), match.ms)
+  }, [latestResponse])
 
-  useEffect(() => {
-    setManualIntimacy(String(intimacyLevel))
-  }, [intimacyLevel])
-
-  const applyIntimacyDelta = (delta: number) => {
+  const applyDelta = (delta: number) => {
     if (!delta) return
-
     changeIntimacy(delta)
     setIntimacyLevel((prev) => clampIntimacy(prev + delta))
   }
 
   async function sendInteraction(intent: InteractionIntent) {
-    const trimmedMessage =
-      intent.type === 'chat' ? intent.message.trim() : ''
-    const lastInteraction =
-      interactions.length > 0 ? interactions[interactions.length - 1] : null
-    const lastReflection = lastInteraction?.response.reflection ?? ''
-
-    if (intent.type === 'chat' && !trimmedMessage) {
-      return
-    }
+    const trimmed = intent.type === 'chat' ? intent.message.trim() : ''
+    if (intent.type === 'chat' && !trimmed) return
 
     const payload: CrappyBirdInput = {
       action: intent.type === 'action' ? intent.action : DEFAULT_CHAT_ACTION,
-      chat: intent.type === 'chat' ? trimmedMessage : '',
+      chat: intent.type === 'chat' ? trimmed : '',
       mood,
       activity,
-      last_reflection: lastReflection,
+      last_reflection: latestResponse?.reflection ?? '',
       intimacy: intimacyLevel,
+    }
+
+    if (intent.type === 'action' && intent.action === 'feed crumb') {
+      setShowCrumb(true)
+      setTimeout(() => setShowCrumb(false), 2500)
     }
 
     setIsLoading(true)
     setError(null)
 
     try {
-      const response = await fetch('/api/gemini', {
+      const res = await fetch('/api/crappy-bird', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       })
-
-      if (!response.ok) {
-        throw new Error('Crappy Bird is feeling too frazzled to reply.')
-      }
-
-      const data = (await response.json()) as CrappyBirdResponse
-
+      if (!res.ok) throw new Error('crappy bird is feeling too frazzled to reply.')
+      const data = (await res.json()) as CrappyBirdResponse
       setMood(data.mood)
       setActivity(data.activity)
       setInteractions((prev) => {
-        const id = typeof crypto.randomUUID === 'function'
-          ? crypto.randomUUID()
-          : `${Date.now()}-${Math.random()}`
-
-        const nextRecord: InteractionRecord =
+        const id =
+          typeof crypto.randomUUID === 'function'
+            ? crypto.randomUUID()
+            : `${Date.now()}-${Math.random()}`
+        const record: InteractionRecord =
           intent.type === 'chat'
-            ? { id, type: 'chat', message: trimmedMessage, response: data }
+            ? { id, type: 'chat', message: trimmed, response: data }
             : { id, type: 'action', action: intent.action, response: data }
-
-        return [...prev, nextRecord]
+        return [...prev, record]
       })
-
-      if (intent.type === 'chat') {
-        setMessage('')
-      }
-
-      if (Number.isFinite(data.feeling_delta)) {
-        applyIntimacyDelta(Math.round(data.feeling_delta))
-      }
+      if (intent.type === 'chat') setMessage('')
+      if (Number.isFinite(data.feeling_delta)) applyDelta(Math.round(data.feeling_delta))
     } catch (err) {
-      const errorMessage =
-        err instanceof Error ? err.message : 'Failed to reach Crappy Bird.'
-      setError(errorMessage)
+      setError(err instanceof Error ? err.message : 'failed to reach crappy bird.')
     } finally {
       setIsLoading(false)
     }
   }
 
-  const handleAction = (action: UserAction) => {
-    if (isLoading) return
-    void sendInteraction({ type: 'action', action })
+  const handleManualSubmit = (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault()
+    const n = Number(manualIntimacy)
+    if (!Number.isFinite(n)) return
+    const c = clampIntimacy(n)
+    setIntimacy(c)
+    setIntimacyLevel(c)
   }
 
-  const handleResetIntimacy = () => {
-    setIntimacy(INTIMACY_MIN)
-    setIntimacyLevel(INTIMACY_MIN)
-  }
-
-  const handleManualIntimacySubmit = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault()
-    const parsed = Number(manualIntimacy)
-    if (!Number.isFinite(parsed)) return
-    const clamped = clampIntimacy(parsed)
-    setIntimacy(clamped)
-    setIntimacyLevel(clamped)
-  }
-
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault()
+  const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault()
     if (isLoading) return
     void sendInteraction({ type: 'chat', message })
   }
 
+  const intimPct = (intimacyLevel / INTIMACY_MAX) * 100
+  const birdClass = isLoading && birdAnim === 'bird-idle' ? 'bird-loading' : birdAnim
+
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-50 to-slate-500 flex items-center justify-center px-4 py-10">
-      <div className="flex flex-col items-center gap-6 p-4 w-full max-w-3xl">
-        <div className="flex flex-col items-center gap-4 w-full">
-          <div className="relative flex items-center justify-center w-full max-w-sm">
-            <img
-              src={CrappyBirdFullBody}
-              alt="Crappy Bird"
-              className="w-64 h-64 object-contain mx-auto"
-            />
-            <div className="bg-white/90 border border-slate-200 rounded-2xl shadow px-4 py-3 text-sm text-slate-700 lowercase max-w-[180px] md:absolute md:right-full md:mr-4 md:top-1/2 md:-translate-y-1/2 text-center md:text-left">
-              {latestResponse?.chat?.trim()
-                ? latestResponse.chat
-                : '...'}
+    <div style={S.page}>
+      <div style={S.container}>
+
+        {/* ── Title ── */}
+        <p style={S.title}>crappy bird</p>
+
+        {/* ── Scene ── */}
+        <div style={S.scene}>
+          {/* Sky */}
+          <div style={S.sky}>
+            {/* Speech bubble */}
+            <div style={S.bubble}>
+              <span style={S.bubbleText}>
+                {isLoading
+                  ? '...'
+                  : latestResponse?.chat?.trim()
+                    ? latestResponse.chat
+                    : '...'}
+              </span>
+              {/* Triangle tail */}
+              <div style={S.tailOuter} />
+              <div style={S.tailInner} />
+            </div>
+
+            {/* Bird + crumb */}
+            <div style={S.birdWrapper}>
+              {showCrumb && <div className="crumb-particle" style={S.crumb} />}
+              <img
+                src={CrappyBirdFullBody}
+                alt="Crappy Bird"
+                className={birdClass}
+                style={S.bird}
+              />
             </div>
           </div>
-          <p className="text-sm text-slate-600 lowercase text-center italic max-w-md">
-            {latestResponse?.reflection ||
-              'the air feels still. crappy bird watches quietly.'}
-          </p>
-        </div>
 
-        <div className="text-center text-slate-700">
-          <p className="text-lg font-semibold">
-            mood: <span className="font-normal lowercase">{mood}</span>
-          </p>
-          <p className="text-lg font-semibold">
-            activity: <span className="font-normal lowercase">{activity}</span>
-          </p>
-        </div>
-
-        <form
-          onSubmit={handleManualIntimacySubmit}
-          className="w-full max-w-xl flex flex-wrap gap-2 items-center justify-between text-sm text-slate-600 lowercase"
-        >
-          <label className="flex-1 min-w-[180px]">
-            set intimacy manually
-            <input
-              type="number"
-              value={manualIntimacy}
-              onChange={(event) => setManualIntimacy(event.target.value)}
-              min={INTIMACY_MIN}
-              max={INTIMACY_MAX}
-              className="mt-1 w-full px-3 py-1.5 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </label>
-          <button
-            type="submit"
-            className="px-4 py-2 font-medium rounded-md bg-slate-900 text-white"
-          >
-            apply level
-          </button>
-        </form>
-
-        <div className="text-sm text-slate-600 lowercase w-full max-w-xl space-y-2">
-          <div className="flex items-center justify-between">
-            <span>intimacy level</span>
-            <span>
-              {intimacyLevel}/{INTIMACY_MAX}
-            </span>
-          </div>
-          <div className="h-2 w-full bg-white/50 rounded-full overflow-hidden">
-            <div
-              className="h-full bg-slate-900 transition-[width] duration-300"
-              style={{
-                width: `${(intimacyLevel / INTIMACY_MAX) * 100}%`,
-              }}
-            />
+          {/* Ground strip */}
+          <div style={S.ground}>
+            <div style={S.tuft1} />
+            <div style={S.tuft2} />
+            <div style={S.tuft3} />
+            <div style={S.tuft4} />
           </div>
         </div>
 
-        <div className="flex flex-wrap gap-3 items-center justify-center">
+        {/* ── Status pills ── */}
+        <div style={S.pillRow}>
+          <span style={S.pill}>mood: {mood}</span>
+          <span style={S.pill}>{activity}</span>
+        </div>
+
+        {/* ── Reflection ── */}
+        <p style={S.reflection}>
+          {latestResponse?.reflection ?? 'the air feels still. crappy bird watches quietly.'}
+        </p>
+
+        {/* ── Action buttons ── */}
+        <div style={S.actionsRow}>
           {ACTIONS.map((action) => (
             <button
               key={action}
               type="button"
               disabled={isLoading}
-              onClick={() => handleAction(action)}
-              className="px-4 py-2 text-sm font-medium lowercase rounded-md bg-slate-900 text-white disabled:opacity-40"
+              onClick={() => void sendInteraction({ type: 'action', action })}
+              style={{ ...S.btn, opacity: isLoading ? 0.45 : 1 }}
             >
               {action}
             </button>
           ))}
-          <button
-            type="button"
-            onClick={handleResetIntimacy}
-            disabled={intimacyLevel === INTIMACY_MIN}
-            className="px-4 py-2 text-sm font-medium lowercase rounded-md border border-slate-900 text-slate-900 disabled:opacity-40"
-          >
-            reset intimacy
-          </button>
         </div>
 
-        <form
-          onSubmit={handleSubmit}
-          className="w-full max-w-xl flex gap-3 items-center"
-        >
+        {/* ── Chat form ── */}
+        <form onSubmit={handleSubmit} style={S.chatForm}>
           <input
             type="text"
             value={message}
-            onChange={(event) => setMessage(event.target.value)}
+            onChange={(e) => setMessage(e.target.value)}
             placeholder="talk to crappy bird..."
             disabled={isLoading}
-            className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 lowercase disabled:bg-slate-100"
+            style={S.chatInput}
           />
           <button
             type="submit"
             disabled={isLoading || !message.trim()}
-            className="px-4 py-2 font-medium rounded-lg bg-blue-600 text-white disabled:opacity-40"
+            style={{ ...S.sendBtn, opacity: isLoading || !message.trim() ? 0.4 : 1 }}
           >
-            {isLoading ? '...' : 'send'}
+            {isLoading ? '...' : 'say'}
           </button>
         </form>
 
-        {error ? (
-          <p className="text-sm text-red-600 lowercase">{error}</p>
-        ) : null}
+        {error && <p style={S.errorText}>{error}</p>}
 
-        <div className="w-full max-w-xl space-y-3">
-          {interactionLog.map((entry) => (
-            <div
-              key={entry.id}
-              className="p-4 rounded-lg bg-white/80 shadow-sm border border-slate-200 space-y-2"
-            >
-              <p className="text-sm text-slate-600 lowercase">
-                you&nbsp;
-                {entry.type === 'chat'
-                  ? `say "${entry.message}"`
-                  : `do ${entry.action}`}
-              </p>
-              <div className="text-sm text-slate-800 lowercase space-y-1">
-                <p>action: {entry.response.action?.join(', ') || 'still'}</p>
-                <p>chat: {entry.response.chat || '...'}</p>
-                <p>reflection: {entry.response.reflection}</p>
-                <p>mood → {entry.response.mood}</p>
-                <p>activity → {entry.response.activity}</p>
-                <p>feeling delta → {entry.response.feeling_delta}</p>
+        {/* ── Interaction log ── */}
+        {interactionLog.length > 0 && (
+          <div style={S.log}>
+            <div style={S.logHeader}>recent</div>
+            {interactionLog.map((entry) => (
+              <div key={entry.id} style={S.logEntry}>
+                <div style={S.logYou}>
+                  you{' '}
+                  {entry.type === 'chat'
+                    ? `said "${entry.message}"`
+                    : `did ${entry.action}`}
+                </div>
+                {entry.response.chat && (
+                  <div style={S.logBird}>bird: {entry.response.chat}</div>
+                )}
+                <div style={S.logReflection}>{entry.response.reflection}</div>
+                <div
+                  style={{
+                    ...S.logDelta,
+                    color:
+                      entry.response.feeling_delta > 0
+                        ? '#5a8a4a'
+                        : entry.response.feeling_delta < 0
+                          ? '#c0392b'
+                          : '#9e8e84',
+                  }}
+                >
+                  {entry.response.feeling_delta > 0
+                    ? `+${entry.response.feeling_delta}`
+                    : entry.response.feeling_delta}{' '}
+                  feeling
+                </div>
               </div>
+            ))}
+          </div>
+        )}
+
+        {/* ── Debug panel ── */}
+        <div style={S.debugSection}>
+          <button
+            type="button"
+            onClick={() => setDebugOpen((p) => !p)}
+            style={S.debugToggle}
+          >
+            {debugOpen ? '▲' : '▼'} debug
+          </button>
+
+          {debugOpen && (
+            <div style={S.debugPanel}>
+              <div style={S.intimacyRow}>
+                <span>
+                  intimacy — {intimacyLabel(intimacyLevel)}
+                </span>
+                <span>
+                  {intimacyLevel} / {INTIMACY_MAX}
+                </span>
+              </div>
+              <div style={S.bar}>
+                <div style={{ ...S.barFill, width: `${intimPct}%` }} />
+              </div>
+              <form onSubmit={handleManualSubmit} style={S.debugForm}>
+                <label style={S.debugLabel}>set:</label>
+                <input
+                  type="number"
+                  value={manualIntimacy}
+                  onChange={(e) => setManualIntimacy(e.target.value)}
+                  min={INTIMACY_MIN}
+                  max={INTIMACY_MAX}
+                  style={S.debugInput}
+                />
+                <button type="submit" style={S.debugApply}>
+                  apply
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIntimacy(INTIMACY_MIN)
+                    setIntimacyLevel(INTIMACY_MIN)
+                  }}
+                  disabled={intimacyLevel === INTIMACY_MIN}
+                  style={{
+                    ...S.debugReset,
+                    opacity: intimacyLevel === INTIMACY_MIN ? 0.4 : 1,
+                  }}
+                >
+                  reset
+                </button>
+              </form>
             </div>
-          ))}
+          )}
         </div>
+
       </div>
     </div>
   )
+}
+
+/* ── Styles ───────────────────────────────────────────────────────────────── */
+
+const MONO = '"Courier New", Courier, monospace'
+const SERIF = 'Georgia, "Times New Roman", serif'
+const INK = '#2d2926'
+const MUTED = '#7a6e66'
+const SOFT_BORDER = '#d4c8be'
+
+const S: Record<string, CSSProperties> = {
+  page: {
+    minHeight: '100vh',
+    background: '#f0ede8',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    padding: '28px 16px 56px',
+  },
+  container: {
+    width: '100%',
+    maxWidth: '420px',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '18px',
+  },
+
+  /* header */
+  title: {
+    margin: 0,
+    textAlign: 'center',
+    fontFamily: MONO,
+    fontSize: '11px',
+    letterSpacing: '3.5px',
+    color: MUTED,
+    textTransform: 'uppercase',
+  },
+
+  /* scene */
+  scene: {
+    borderRadius: '14px',
+    overflow: 'hidden',
+    border: `2.5px solid ${INK}`,
+    boxShadow: `4px 4px 0 ${INK}`,
+  },
+  sky: {
+    background: 'linear-gradient(180deg, #d4e9f7 0%, #e8f4ff 50%, #f5f0e8 100%)',
+    height: '250px',
+    position: 'relative',
+    display: 'flex',
+    alignItems: 'flex-end',
+    justifyContent: 'center',
+  },
+  bubble: {
+    position: 'absolute',
+    top: '18px',
+    left: '18px',
+    right: '18px',
+    background: 'white',
+    border: `2px solid ${INK}`,
+    borderRadius: '10px',
+    padding: '10px 14px',
+    textAlign: 'center',
+  },
+  bubbleText: {
+    display: 'block',
+    fontFamily: MONO,
+    fontSize: '12px',
+    color: INK,
+    lineHeight: '1.65',
+    minHeight: '18px',
+  },
+  /* downward triangle tail, centered on the bubble's bottom edge */
+  tailOuter: {
+    position: 'absolute',
+    bottom: '-11px',
+    left: '50%',
+    transform: 'translateX(-50%)',
+    width: 0,
+    height: 0,
+    borderLeft: '9px solid transparent',
+    borderRight: '9px solid transparent',
+    borderTop: `11px solid ${INK}`,
+  },
+  tailInner: {
+    position: 'absolute',
+    bottom: '-8px',
+    left: '50%',
+    transform: 'translateX(-50%)',
+    width: 0,
+    height: 0,
+    borderLeft: '8px solid transparent',
+    borderRight: '8px solid transparent',
+    borderTop: '9px solid white',
+  },
+  birdWrapper: {
+    position: 'relative',
+    zIndex: 1,
+    marginBottom: '-2px',
+  },
+  crumb: {
+    position: 'absolute',
+    bottom: '10px',
+    right: '-8px',
+    width: '9px',
+    height: '7px',
+    background: '#c8964e',
+    borderRadius: '2px',
+    border: '1.5px solid #96681e',
+  },
+  bird: {
+    width: '130px',
+    height: '130px',
+    objectFit: 'contain',
+    transformOrigin: 'center bottom',
+    mixBlendMode: 'multiply',
+    display: 'block',
+  },
+  ground: {
+    background: 'linear-gradient(180deg, #bed994 0%, #a8c46e 100%)',
+    height: '42px',
+    borderTop: `2px solid ${INK}`,
+    display: 'flex',
+    alignItems: 'flex-start',
+    paddingTop: '7px',
+    paddingLeft: '12px',
+    gap: '8px',
+  },
+  tuft1: { width: '13px', height: '10px', background: '#80a44a', borderRadius: '60% 60% 0 0', border: `1.5px solid ${INK}` },
+  tuft2: { width: '9px',  height: '6px',  background: '#80a44a', borderRadius: '60% 60% 0 0', border: `1.5px solid ${INK}` },
+  tuft3: { width: '11px', height: '8px',  background: '#80a44a', borderRadius: '60% 60% 0 0', border: `1.5px solid ${INK}` },
+  tuft4: { width: '7px',  height: '5px',  background: '#80a44a', borderRadius: '60% 60% 0 0', border: `1.5px solid ${INK}` },
+
+  /* status */
+  pillRow: {
+    display: 'flex',
+    gap: '8px',
+    justifyContent: 'center',
+    flexWrap: 'wrap',
+  },
+  pill: {
+    padding: '4px 14px',
+    background: 'white',
+    border: `1.5px solid ${INK}`,
+    borderRadius: '20px',
+    fontFamily: MONO,
+    fontSize: '11px',
+    color: INK,
+    boxShadow: `2px 2px 0 ${INK}`,
+  },
+  reflection: {
+    margin: 0,
+    textAlign: 'center',
+    fontFamily: SERIF,
+    fontSize: '13px',
+    color: MUTED,
+    fontStyle: 'italic',
+    lineHeight: '1.75',
+  },
+
+  /* actions */
+  actionsRow: {
+    display: 'flex',
+    gap: '10px',
+    justifyContent: 'center',
+    flexWrap: 'wrap',
+  },
+  btn: {
+    padding: '9px 22px',
+    background: INK,
+    color: 'white',
+    border: 'none',
+    borderRadius: '7px',
+    fontFamily: MONO,
+    fontSize: '12px',
+    cursor: 'pointer',
+    letterSpacing: '0.4px',
+    boxShadow: '2px 2px 0 #6b5d52',
+    transition: 'opacity 0.15s',
+  },
+
+  /* chat */
+  chatForm: { display: 'flex', gap: '8px' },
+  chatInput: {
+    flex: 1,
+    padding: '10px 14px',
+    border: `2px solid ${INK}`,
+    borderRadius: '8px',
+    background: 'white',
+    fontFamily: MONO,
+    fontSize: '12px',
+    color: INK,
+    outline: 'none',
+  },
+  sendBtn: {
+    padding: '10px 18px',
+    background: '#4e7bbf',
+    color: 'white',
+    border: `2px solid ${INK}`,
+    borderRadius: '8px',
+    fontFamily: MONO,
+    fontSize: '12px',
+    cursor: 'pointer',
+    boxShadow: `2px 2px 0 ${INK}`,
+    transition: 'opacity 0.15s',
+    whiteSpace: 'nowrap',
+  },
+  errorText: {
+    margin: 0,
+    fontFamily: MONO,
+    fontSize: '11px',
+    color: '#c0392b',
+    textAlign: 'center',
+  },
+
+  /* log */
+  log: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '8px',
+    maxHeight: '340px',
+    overflowY: 'auto',
+  },
+  logHeader: {
+    fontFamily: MONO,
+    fontSize: '10px',
+    color: '#9e8e84',
+    letterSpacing: '2.5px',
+    textTransform: 'uppercase',
+    paddingBottom: '6px',
+    borderBottom: `1px solid ${SOFT_BORDER}`,
+  },
+  logEntry: {
+    padding: '10px 12px',
+    background: 'white',
+    border: `1.5px solid ${SOFT_BORDER}`,
+    borderRadius: '8px',
+    fontFamily: MONO,
+    fontSize: '11px',
+    color: INK,
+    lineHeight: '1.7',
+  },
+  logYou:        { color: MUTED, marginBottom: '3px' },
+  logBird:       { marginBottom: '3px' },
+  logReflection: { color: '#9e8e84', fontStyle: 'italic', fontSize: '10px', marginBottom: '3px' },
+  logDelta:      { fontSize: '10px', fontWeight: 'bold' },
+
+  /* debug */
+  debugSection: {
+    borderTop: `1px solid ${SOFT_BORDER}`,
+    paddingTop: '12px',
+  },
+  debugToggle: {
+    background: 'none',
+    border: 'none',
+    cursor: 'pointer',
+    fontFamily: MONO,
+    fontSize: '10px',
+    color: '#9e8e84',
+    letterSpacing: '1.5px',
+    padding: 0,
+    textTransform: 'uppercase',
+  },
+  debugPanel: {
+    marginTop: '12px',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '10px',
+  },
+  intimacyRow: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    fontFamily: MONO,
+    fontSize: '11px',
+    color: MUTED,
+  },
+  bar: {
+    height: '6px',
+    background: '#e4dcd4',
+    borderRadius: '3px',
+    overflow: 'hidden',
+  },
+  barFill: {
+    height: '100%',
+    background: '#c8964e',
+    borderRadius: '3px',
+    transition: 'width 0.35s ease',
+  },
+  debugForm: {
+    display: 'flex',
+    gap: '6px',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+  },
+  debugLabel: {
+    fontFamily: MONO,
+    fontSize: '11px',
+    color: MUTED,
+  },
+  debugInput: {
+    width: '72px',
+    padding: '4px 8px',
+    border: `1.5px solid ${SOFT_BORDER}`,
+    borderRadius: '4px',
+    fontFamily: MONO,
+    fontSize: '11px',
+    background: 'white',
+    color: INK,
+    outline: 'none',
+  },
+  debugApply: {
+    padding: '4px 10px',
+    background: INK,
+    color: 'white',
+    border: 'none',
+    borderRadius: '4px',
+    fontFamily: MONO,
+    fontSize: '11px',
+    cursor: 'pointer',
+  },
+  debugReset: {
+    padding: '4px 10px',
+    background: 'white',
+    color: INK,
+    border: `1.5px solid ${SOFT_BORDER}`,
+    borderRadius: '4px',
+    fontFamily: MONO,
+    fontSize: '11px',
+    cursor: 'pointer',
+    transition: 'opacity 0.15s',
+  },
 }

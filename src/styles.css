@@ -13,3 +13,126 @@ code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, "Courier New",
     monospace;
 }
+
+/* ── Bird animation classes ─────────────────────────────────────────────── */
+
+.bird-idle {
+  animation: birdBob 3.2s ease-in-out infinite;
+}
+
+.bird-loading {
+  animation: birdBob 1.1s ease-in-out infinite;
+}
+
+.bird-peck {
+  animation: birdPeck 0.9s ease-in-out;
+}
+
+.bird-peck-gentle {
+  animation: birdPeckGentle 1.3s ease-in-out;
+}
+
+.bird-flinch {
+  animation: birdFlinch 0.7s ease-in-out;
+}
+
+.bird-tilt {
+  animation: birdTilt 1s ease-in-out;
+}
+
+.bird-shift {
+  animation: birdShift 0.8s ease-in-out;
+}
+
+.bird-lean {
+  animation: birdLean 1.1s ease-in-out;
+}
+
+.bird-settle {
+  animation: birdSettle 1.1s ease-in-out;
+}
+
+.bird-step-back {
+  animation: birdStepBack 0.9s ease-in-out;
+}
+
+.bird-blink {
+  animation: birdBlink 0.6s ease-in-out;
+}
+
+/* Crumb drop-in + fade-out */
+.crumb-particle {
+  animation: crumbLife 2.4s ease-out forwards;
+}
+
+/* ── Keyframes ───────────────────────────────────────────────────────────── */
+
+@keyframes birdBob {
+  0%, 100% { transform: translateY(0px); }
+  50%       { transform: translateY(-6px); }
+}
+
+@keyframes birdPeck {
+  0%   { transform: rotate(0deg); }
+  35%  { transform: rotate(24deg); }
+  62%  { transform: rotate(24deg); }
+  100% { transform: rotate(0deg); }
+}
+
+@keyframes birdPeckGentle {
+  0%   { transform: rotate(0deg); }
+  32%  { transform: rotate(15deg); }
+  58%  { transform: rotate(15deg); }
+  100% { transform: rotate(0deg); }
+}
+
+@keyframes birdFlinch {
+  0%   { transform: translateX(0)    scale(1); }
+  25%  { transform: translateX(-14px) scale(0.91); }
+  65%  { transform: translateX(-5px)  scale(0.97); }
+  100% { transform: translateX(0)    scale(1); }
+}
+
+@keyframes birdTilt {
+  0%   { transform: rotate(0deg); }
+  35%  { transform: rotate(-16deg); }
+  65%  { transform: rotate(-16deg); }
+  100% { transform: rotate(0deg); }
+}
+
+@keyframes birdShift {
+  0%   { transform: translateX(0); }
+  50%  { transform: translateX(12px); }
+  100% { transform: translateX(0); }
+}
+
+@keyframes birdLean {
+  0%   { transform: translateX(0)    rotate(0deg); }
+  50%  { transform: translateX(14px) rotate(7deg); }
+  100% { transform: translateX(0)    rotate(0deg); }
+}
+
+@keyframes birdSettle {
+  0%   { transform: scaleY(1)    scaleX(1); }
+  28%  { transform: scaleY(0.90) scaleX(1.08); }
+  62%  { transform: scaleY(0.97) scaleX(1.02); }
+  100% { transform: scaleY(1)    scaleX(1); }
+}
+
+@keyframes birdStepBack {
+  0%   { transform: translateX(0); }
+  45%  { transform: translateX(-20px); }
+  100% { transform: translateX(0); }
+}
+
+@keyframes birdBlink {
+  0%, 78%, 100% { opacity: 1; }
+  88%           { opacity: 0.5; }
+}
+
+@keyframes crumbLife {
+  0%   { opacity: 0; transform: scale(0.4) translateY(-8px); }
+  18%  { opacity: 1; transform: scale(1)   translateY(0); }
+  74%  { opacity: 1; transform: scale(1)   translateY(0); }
+  100% { opacity: 0; transform: scale(0.5) translateY(6px); }
+}

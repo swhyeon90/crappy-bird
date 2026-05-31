@@ -86,8 +86,8 @@ async function generateCrappyBirdResponse(
   }
 }
 
-// TODO: change the route path
-export const Route = createFileRoute("/api/gemini")({
+// Keep the public path generic so we don't leak the provider name
+export const Route = createFileRoute("/api/crappy-bird")({
   server: {
     handlers: {
       POST: async ({ request }) => {
