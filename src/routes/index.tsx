@@ -56,26 +56,26 @@ function intimacyLabel(level: number) {
 
 /* ── Themes ───────────────────────────────────────────────────────────────── */
 const LT = {
-  pageBg:     '#f5f2ed',
-  ink:        '#2d2926',
-  muted:      '#8a7e76',
-  border:     '#e0dbd4',
-  bubbleBg:   '#ffffff',
-  inputBg:    '#ffffff',
-  barBg:      '#e4dcd4',
-  barFill:    '#c8964e',
-  divider:    '#ebe6e0',
+  pageBg:    '#f5f2ed',
+  ink:       '#2d2926',
+  muted:     '#8a7e76',
+  border:    '#e0dbd4',
+  bubbleBg:  '#ffffff',
+  inputBg:   'rgba(255,255,255,0.7)',
+  panelBg:   'rgba(255,255,255,0.92)',
+  barBg:     '#e4dcd4',
+  barFill:   '#c8964e',
 }
 const DK = {
-  pageBg:     '#1a1714',
-  ink:        '#e0d8cc',
-  muted:      '#7a7068',
-  border:     '#2e2924',
-  bubbleBg:   '#242018',
-  inputBg:    '#242018',
-  barBg:      '#3a342c',
-  barFill:    '#c8964e',
-  divider:    '#242018',
+  pageBg:    '#1a1714',
+  ink:       '#e0d8cc',
+  muted:     '#7a7068',
+  border:    '#2e2924',
+  bubbleBg:  '#242018',
+  inputBg:   'rgba(36,32,24,0.6)',
+  panelBg:   'rgba(26,23,20,0.94)',
+  barBg:     '#3a342c',
+  barFill:   '#c8964e',
 }
 
 const MONO = '"Courier New", Courier, monospace'
@@ -94,23 +94,28 @@ function App() {
   const [manualIntimacy, setManualIntimacy] = useState(() => String(getIntimacy()))
   const [birdAnim, setBirdAnim]   = useState('bird-idle')
   const [showCrumb, setShowCrumb] = useState(false)
-  const [debugOpen, setDebugOpen] = useState(false)
+  const [panelOpen, setPanelOpen] = useState(false)
+  const [showBubble, setShowBubble] = useState(false)
   const [darkMode, setDarkMode]   = useState(() =>
     typeof window !== 'undefined'
       ? window.matchMedia('(prefers-color-scheme: dark)').matches
       : false
   )
-  const [birdPos, setBirdPos]         = useState({ x: 50, y: 60 })
+  const [birdPos, setBirdPos]         = useState({ x: 50, y: 55 })
   const [facingRight, setFacingRight] = useState(true)
   const [isRoaming, setIsRoaming]     = useState(false)
+  // when false, position changes apply instantly (no glide) — used when the
+  // tab is hidden so the bird doesn't violently animate on return
+  const [animatePos, setAnimatePos]   = useState(true)
 
   const animTimer    = useRef<ReturnType<typeof setTimeout> | null>(null)
   const roamTimer    = useRef<ReturnType<typeof setTimeout> | null>(null)
   const roamEndTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const chatEndRef   = useRef<HTMLDivElement>(null)
+  const bubbleTimer  = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const latestResponse =
     interactions.length > 0 ? interactions[interactions.length - 1].response : null
+  const recent = [...interactions].reverse()
   const T = darkMode ? DK : LT
 
   /* System dark-mode tracking */
@@ -139,31 +144,53 @@ function App() {
     animTimer.current = setTimeout(() => setBirdAnim('bird-idle'), match.ms)
   }, [latestResponse])
 
-  /* Auto-scroll chat to bottom */
+  /* Speech bubble appears on a new response, fades after 7 s */
   useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [interactions, isLoading])
+    if (!latestResponse?.chat?.trim()) return
+    setShowBubble(true)
+    if (bubbleTimer.current) clearTimeout(bubbleTimer.current)
+    bubbleTimer.current = setTimeout(() => setShowBubble(false), 7000)
+  }, [latestResponse])
 
   /* Autonomous roaming */
   useEffect(() => {
     const scheduleRoam = () => {
       roamTimer.current = setTimeout(() => {
+        const hidden = typeof document !== 'undefined' && document.hidden
+        // hidden tab: relocate instantly so it's just "there" on return.
+        // visible tab: glide + hop as normal.
+        setAnimatePos(!hidden)
         setBirdPos(prev => {
-          const newX = 12 + Math.random() * 76
-          const newY = 45 + Math.random() * 30
+          const newX = 10 + Math.random() * 80
+          const newY = 22 + Math.random() * 56
           setFacingRight(newX >= prev.x)
           return { x: newX, y: newY }
         })
-        setIsRoaming(true)
-        if (roamEndTimer.current) clearTimeout(roamEndTimer.current)
-        roamEndTimer.current = setTimeout(() => setIsRoaming(false), 2800)
+        if (!hidden) {
+          setIsRoaming(true)
+          if (roamEndTimer.current) clearTimeout(roamEndTimer.current)
+          roamEndTimer.current = setTimeout(() => setIsRoaming(false), 2800)
+        }
         scheduleRoam()
-      }, 10000 + Math.random() * 12000)
+      }, 8000 + Math.random() * 11000)
     }
-    roamTimer.current = setTimeout(scheduleRoam, 12000)
+    roamTimer.current = setTimeout(scheduleRoam, 9000)
+
+    // When the tab is hidden, stop any in-progress hop and disable the glide
+    // so nothing animates while we're away (or on the way back).
+    const onVisibility = () => {
+      if (document.hidden) {
+        if (roamEndTimer.current) clearTimeout(roamEndTimer.current)
+        setIsRoaming(false)
+        setAnimatePos(false)
+      }
+    }
+    document.addEventListener('visibilitychange', onVisibility)
+
     return () => {
       if (roamTimer.current)    clearTimeout(roamTimer.current)
       if (roamEndTimer.current) clearTimeout(roamEndTimer.current)
+      document.removeEventListener('visibilitychange', onVisibility)
     }
   }, [])
 
@@ -237,212 +264,178 @@ function App() {
   }
 
   const poke = () => { if (!isLoading) void sendInteraction({ type: 'action', action: 'poke' }) }
-  const birdClass  = isLoading && birdAnim === 'bird-idle' ? 'bird-loading' : birdAnim
-  const intimPct   = (intimacyLevel / INTIMACY_MAX) * 100
-  const dots       = intimacyToDots(intimacyLevel)
+  const birdClass = isLoading && birdAnim === 'bird-idle' ? 'bird-loading' : birdAnim
+  const intimPct  = (intimacyLevel / INTIMACY_MAX) * 100
+  const dots      = intimacyToDots(intimacyLevel)
+  const bubbleChat = latestResponse?.chat?.trim() ?? ''
 
   return (
-    <div className="app-shell" style={{ background: T.pageBg, display: 'flex', flexDirection: 'column', color: T.ink, overflow: 'hidden' }}>
+    <div className="app-shell" style={{ position: 'relative', overflow: 'hidden', background: T.pageBg, color: T.ink }}>
 
-      {/* ── Header ──────────────────────────────────────────────────────────── */}
-      <div style={{ flexShrink: 0, height: '48px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 20px', borderBottom: `1px solid ${T.divider}` }}>
-        <span style={{ fontFamily: MONO, fontSize: '10px', letterSpacing: '3px', textTransform: 'uppercase', color: T.muted }}>
-          crappy bird
-        </span>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <span style={{ fontFamily: MONO, fontSize: '10px', color: T.muted, textTransform: 'lowercase' }}>
-            {mood}
-          </span>
-          {/* Intimacy dots */}
-          <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
-            {[1,2,3,4,5].map(i => (
-              <div key={i} style={{ width: '5px', height: '5px', borderRadius: '50%', background: dots >= i ? T.ink : T.border, transition: 'background 0.4s ease' }} />
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* ── Bird stage ──────────────────────────────────────────────────────── */}
-      <div className="bird-stage" style={{ flexShrink: 0, position: 'relative', overflow: 'hidden', borderBottom: `1px solid ${T.divider}` }}>
-
-        {/* Roaming bird */}
-        <div style={{ position: 'absolute', left: `${birdPos.x}%`, top: `${birdPos.y}%`, transform: 'translate(-50%, -50%)', transition: 'left 2.8s ease-in-out, top 2.8s ease-in-out', zIndex: 1 }}>
-          <div className={isRoaming ? 'bird-hop' : ''} style={{ transformOrigin: 'center bottom' }}>
-            <div style={{ transform: `scaleX(${facingRight ? 1 : -1})`, transition: 'transform 0.4s ease' }}>
-              {/* Clickable bird */}
-              <div
-                role="button"
-                aria-label="poke crappy bird"
-                tabIndex={0}
-                onClick={poke}
-                onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); poke() } }}
-                style={{ position: 'relative', cursor: isLoading ? 'default' : 'pointer', display: 'inline-block' }}
-              >
-                {showCrumb && (
-                  <div className="crumb-particle" style={{ position: 'absolute', bottom: '10px', right: '-10px', width: '9px', height: '7px', background: '#c8964e', borderRadius: '2px', border: '1.5px solid #96681e' }} />
-                )}
-                <img
-                  src={CrappyBirdFullBody}
-                  alt="Crappy Bird"
-                  className={birdClass}
-                  style={{ width: '120px', height: '120px', objectFit: 'contain', transformOrigin: 'center bottom', filter: darkMode ? 'invert(1)' : 'none', display: 'block' }}
-                />
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Activity strip inside stage — bottom edge */}
-        <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: '6px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <span style={{ fontFamily: MONO, fontSize: '11px', color: T.muted, letterSpacing: '1px', textTransform: 'lowercase', opacity: 0.8 }}>
-            {activity}
-          </span>
-          {interactions.length === 0 && (
-            <span style={{ fontFamily: MONO, fontSize: '11px', color: T.muted, letterSpacing: '1px', opacity: 0.6 }}>
-              tap to poke
-            </span>
-          )}
-        </div>
-      </div>
-
-      {/* ── Chat log ────────────────────────────────────────────────────────── */}
-      <div className="chat-scroll" style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-        <div style={{ flex: 1, padding: '20px 16px 12px', display: 'flex', flexDirection: 'column', gap: '18px' }}>
-
-          {/* Empty state */}
-          {interactions.length === 0 && (
-            <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60px' }}>
-              <p style={{ margin: 0, fontFamily: SERIF, fontSize: '13px', color: T.muted, fontStyle: 'italic', textAlign: 'center', lineHeight: 1.8 }}>
-                the air feels still.<br />crappy bird watches quietly.
-              </p>
-            </div>
-          )}
-
-          {/* Conversation entries */}
-          {interactions.map(entry => (
-            <div key={entry.id} style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-
-              {/* Your turn — right-aligned */}
-              <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                <div style={{ maxWidth: '72%', padding: '9px 14px', borderRadius: entry.type === 'chat' ? '18px 18px 5px 18px' : '20px', background: T.ink, color: T.pageBg, fontFamily: MONO, fontSize: '12px', lineHeight: 1.55, wordBreak: 'break-word' }}>
-                  {entry.type === 'chat' ? entry.message : entry.action}
-                </div>
-              </div>
-
-              {/* Bird's response — left-aligned */}
-              {entry.response.chat ? (
-                <div style={{ display: 'flex', justifyContent: 'flex-start' }}>
-                  <div style={{ maxWidth: '72%', padding: '9px 14px', borderRadius: '18px 18px 18px 5px', background: T.bubbleBg, border: `1px solid ${T.border}`, fontFamily: MONO, fontSize: '12px', color: T.ink, lineHeight: 1.55, wordBreak: 'break-word' }}>
-                    {entry.response.chat}
-                  </div>
-                </div>
-              ) : null}
-
-              {/* Narrator reflection — centered italic */}
-              {entry.response.reflection ? (
-                <div style={{ display: 'flex', justifyContent: 'center', padding: '2px 16px' }}>
-                  <span style={{ fontFamily: SERIF, fontSize: '11px', color: T.muted, fontStyle: 'italic', textAlign: 'center', lineHeight: 1.7 }}>
-                    {entry.response.reflection}
-                  </span>
-                </div>
-              ) : null}
-            </div>
+      {/* ── Top-left: minimal status ── */}
+      <div style={{ position: 'absolute', top: '16px', left: '18px', zIndex: 5, display: 'flex', flexDirection: 'column', gap: '4px', pointerEvents: 'none' }}>
+        <span style={{ fontFamily: MONO, fontSize: '11px', color: T.ink }}>{mood}</span>
+        <span style={{ fontFamily: MONO, fontSize: '10px', color: T.muted }}>{activity}</span>
+        <div style={{ display: 'flex', gap: '4px', marginTop: '2px' }}>
+          {[1,2,3,4,5].map(i => (
+            <div key={i} style={{ width: '5px', height: '5px', borderRadius: '50%', background: dots >= i ? T.ink : T.border, transition: 'background 0.4s ease' }} />
           ))}
-
-          {/* Typing indicator while waiting */}
-          {isLoading && (
-            <div style={{ display: 'flex', justifyContent: 'flex-start' }}>
-              <div style={{ padding: '9px 16px', borderRadius: '18px 18px 18px 5px', background: T.bubbleBg, border: `1px solid ${T.border}`, fontFamily: MONO, fontSize: '13px', color: T.muted, letterSpacing: '3px' }}>
-                ...
-              </div>
-            </div>
-          )}
-
-          {/* Error */}
-          {error && (
-            <p style={{ margin: 0, fontFamily: MONO, fontSize: '11px', color: '#c0392b', textAlign: 'center' }}>
-              {error}
-            </p>
-          )}
-
-          {/* Debug */}
-          <div style={{ borderTop: `1px solid ${T.divider}`, paddingTop: '14px', marginTop: '4px' }}>
-            <button
-              type="button"
-              onClick={() => setDebugOpen(p => !p)}
-              style={{ background: 'none', border: 'none', cursor: 'pointer', fontFamily: MONO, fontSize: '11px', color: T.muted, letterSpacing: '2px', padding: '8px 0', textTransform: 'uppercase', opacity: 0.7, minHeight: '44px', display: 'flex', alignItems: 'center' }}
-            >
-              {debugOpen ? '▲' : '▼'} debug
-            </button>
-            {debugOpen && (
-              <div style={{ marginTop: '12px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: MONO, fontSize: '11px', color: T.muted }}>
-                  <span>intimacy — {intimacyLabel(intimacyLevel)}</span>
-                  <span>{intimacyLevel} / {INTIMACY_MAX}</span>
-                </div>
-                <div style={{ height: '4px', background: T.barBg, borderRadius: '2px', overflow: 'hidden' }}>
-                  <div style={{ height: '100%', background: T.barFill, width: `${intimPct}%`, borderRadius: '2px', transition: 'width 0.35s ease' }} />
-                </div>
-                <form onSubmit={handleManualSubmit} style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
-                  <label style={{ fontFamily: MONO, fontSize: '11px', color: T.muted }}>set:</label>
-                  <input
-                    type="number"
-                    value={manualIntimacy}
-                    onChange={e => setManualIntimacy(e.target.value)}
-                    min={INTIMACY_MIN}
-                    max={INTIMACY_MAX}
-                    style={{ width: '80px', padding: '8px 10px', border: `1px solid ${T.border}`, borderRadius: '8px', fontFamily: MONO, fontSize: '13px', background: T.inputBg, color: T.ink, outline: 'none' }}
-                  />
-                  <button type="submit" style={{ padding: '8px 14px', background: T.ink, color: T.pageBg, border: 'none', borderRadius: '8px', fontFamily: MONO, fontSize: '12px', cursor: 'pointer', minHeight: '44px' }}>apply</button>
-                  <button
-                    type="button"
-                    onClick={() => { setIntimacy(INTIMACY_MIN); setIntimacyLevel(INTIMACY_MIN) }}
-                    disabled={intimacyLevel === INTIMACY_MIN}
-                    style={{ padding: '8px 14px', background: 'transparent', color: T.ink, border: `1px solid ${T.border}`, borderRadius: '8px', fontFamily: MONO, fontSize: '12px', cursor: 'pointer', opacity: intimacyLevel === INTIMACY_MIN ? 0.4 : 1, minHeight: '44px' }}
-                  >
-                    reset
-                  </button>
-                </form>
-              </div>
-            )}
-          </div>
-
-          <div ref={chatEndRef} />
         </div>
       </div>
 
-      {/* ── Input bar ─ stays above keyboard; safe-area clears iPhone home bar ── */}
-      <div className="input-bar" style={{ flexShrink: 0, borderTop: `1px solid ${T.divider}`, paddingTop: '10px', paddingLeft: '12px', paddingRight: '12px', display: 'flex', gap: '8px', alignItems: 'center', background: T.pageBg }}>
-        {/* Feed crumb — min 44 px tap target */}
-        <button
-          type="button"
-          disabled={isLoading}
-          onClick={() => { if (!isLoading) void sendInteraction({ type: 'action', action: 'feed crumb' }) }}
-          style={{ flexShrink: 0, minHeight: '44px', padding: '0 14px', background: 'transparent', border: `1px solid ${T.border}`, borderRadius: '22px', fontFamily: MONO, fontSize: '12px', color: T.muted, cursor: isLoading ? 'not-allowed' : 'pointer', letterSpacing: '0.5px', opacity: isLoading ? 0.4 : 1, transition: 'opacity 0.15s' }}
-        >
-          crumb
-        </button>
+      {/* ── Top-right: history / debug toggle ── */}
+      <button
+        type="button"
+        onClick={() => setPanelOpen(o => !o)}
+        style={{ position: 'absolute', top: '14px', right: '16px', zIndex: 6, background: 'none', border: 'none', cursor: 'pointer', fontFamily: MONO, fontSize: '10px', letterSpacing: '1.5px', textTransform: 'uppercase', color: T.muted, padding: '6px' }}
+      >
+        {panelOpen ? '✕' : '···'}
+      </button>
 
-        {/* Message input + send */}
-        <form onSubmit={handleSubmit} style={{ flex: 1, display: 'flex', gap: '8px', alignItems: 'center' }}>
-          <input
-            type="text"
-            value={message}
-            onChange={e => setMessage(e.target.value)}
-            placeholder="say something..."
-            disabled={isLoading}
-            /* fontSize ≥ 16px prevents iOS auto-zoom on input focus */
-            style={{ flex: 1, minWidth: 0, minHeight: '44px', padding: '0 16px', border: `1px solid ${T.border}`, borderRadius: '22px', background: T.inputBg, fontFamily: MONO, fontSize: '16px', color: T.ink, outline: 'none' }}
-          />
+      {/* ── Slide-down minimal panel: recent history + debug ── */}
+      {panelOpen && (
+        <div style={{ position: 'absolute', top: '40px', right: '16px', zIndex: 6, width: 'min(86vw, 320px)', maxHeight: '70vh', overflowY: 'auto', background: T.panelBg, border: `1px solid ${T.border}`, borderRadius: '10px', padding: '14px', backdropFilter: 'blur(6px)', boxShadow: '0 8px 24px rgba(0,0,0,0.12)' }}>
+          <div style={{ fontFamily: MONO, fontSize: '9px', letterSpacing: '2px', textTransform: 'uppercase', color: T.muted, marginBottom: '10px' }}>recent</div>
+
+          {recent.length === 0 ? (
+            <p style={{ margin: 0, fontFamily: SERIF, fontStyle: 'italic', fontSize: '12px', color: T.muted }}>nothing yet.</p>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              {recent.slice(0, 20).map(e => (
+                <div key={e.id} style={{ fontFamily: MONO, fontSize: '11px', lineHeight: 1.5 }}>
+                  <span style={{ color: T.muted }}>
+                    {e.type === 'chat' ? `you: ${e.message}` : `· ${e.action} ·`}
+                  </span>
+                  {e.response.chat ? <div style={{ color: T.ink }}>{e.response.chat}</div> : null}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Debug (kept for testing) */}
+          <div style={{ borderTop: `1px solid ${T.border}`, marginTop: '14px', paddingTop: '12px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: MONO, fontSize: '10px', color: T.muted }}>
+              <span>intimacy — {intimacyLabel(intimacyLevel)}</span>
+              <span>{intimacyLevel}/{INTIMACY_MAX}</span>
+            </div>
+            <div style={{ height: '4px', background: T.barBg, borderRadius: '2px', overflow: 'hidden' }}>
+              <div style={{ height: '100%', width: `${intimPct}%`, background: T.barFill, borderRadius: '2px', transition: 'width 0.35s ease' }} />
+            </div>
+            <form onSubmit={handleManualSubmit} style={{ display: 'flex', gap: '6px', alignItems: 'center', flexWrap: 'wrap' }}>
+              <input
+                type="number"
+                value={manualIntimacy}
+                onChange={e => setManualIntimacy(e.target.value)}
+                min={INTIMACY_MIN}
+                max={INTIMACY_MAX}
+                style={{ width: '76px', padding: '6px 8px', border: `1px solid ${T.border}`, borderRadius: '6px', fontFamily: MONO, fontSize: '12px', background: T.bubbleBg, color: T.ink, outline: 'none' }}
+              />
+              <button type="submit" style={{ padding: '6px 12px', background: T.ink, color: T.pageBg, border: 'none', borderRadius: '6px', fontFamily: MONO, fontSize: '11px', cursor: 'pointer' }}>set</button>
+              <button
+                type="button"
+                onClick={() => { setIntimacy(INTIMACY_MIN); setIntimacyLevel(INTIMACY_MIN) }}
+                disabled={intimacyLevel === INTIMACY_MIN}
+                style={{ padding: '6px 12px', background: 'transparent', color: T.ink, border: `1px solid ${T.border}`, borderRadius: '6px', fontFamily: MONO, fontSize: '11px', cursor: 'pointer', opacity: intimacyLevel === INTIMACY_MIN ? 0.4 : 1 }}
+              >
+                reset
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ── The playground: bird roams the whole page ── */}
+      <div
+        style={{ position: 'absolute', left: `${birdPos.x}%`, top: `${birdPos.y}%`, transform: 'translate(-50%, -50%)', transition: animatePos ? 'left 2.8s ease-in-out, top 2.8s ease-in-out' : 'none', zIndex: 2 }}
+      >
+        {/* Speech bubble — follows the bird, floats above its head, fades out */}
+        <div
+          style={{
+            position: 'absolute',
+            bottom: '128px',
+            left: '50%',
+            width: '170px',
+            background: T.bubbleBg,
+            border: `2px solid ${T.ink}`,
+            borderRadius: '12px',
+            padding: '8px 12px',
+            textAlign: 'center',
+            opacity: showBubble && bubbleChat ? 1 : 0,
+            transform: `translateX(-50%) translateY(${showBubble ? 0 : 6}px)`,
+            transition: 'opacity 0.4s ease, transform 0.4s ease',
+            pointerEvents: 'none',
+          }}
+        >
+          <span style={{ display: 'block', fontFamily: MONO, fontSize: '12px', color: T.ink, lineHeight: 1.5 }}>
+            {bubbleChat || '...'}
+          </span>
+          <div style={{ position: 'absolute', bottom: '-11px', left: '50%', transform: 'translateX(-50%)', width: 0, height: 0, borderLeft: '9px solid transparent', borderRight: '9px solid transparent', borderTop: `11px solid ${T.ink}` }} />
+          <div style={{ position: 'absolute', bottom: '-8px', left: '50%', transform: 'translateX(-50%)', width: 0, height: 0, borderLeft: '8px solid transparent', borderRight: '8px solid transparent', borderTop: `9px solid ${T.bubbleBg}` }} />
+        </div>
+
+        {/* Hop wrapper */}
+        <div className={isRoaming ? 'bird-hop' : ''} style={{ transformOrigin: 'center bottom' }}>
+          {/* Flip wrapper — mirrors bird by travel direction */}
+          <div style={{ transform: `scaleX(${facingRight ? 1 : -1})`, transition: 'transform 0.4s ease' }}>
+            <div
+              role="button"
+              aria-label="poke crappy bird"
+              tabIndex={0}
+              onClick={poke}
+              onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); poke() } }}
+              style={{ position: 'relative', cursor: isLoading ? 'default' : 'pointer', display: 'inline-block' }}
+            >
+              {showCrumb && (
+                <div className="crumb-particle" style={{ position: 'absolute', bottom: '10px', right: '-10px', width: '9px', height: '7px', background: '#c8964e', borderRadius: '2px', border: '1.5px solid #96681e' }} />
+              )}
+              <img
+                src={CrappyBirdFullBody}
+                alt="Crappy Bird"
+                className={birdClass}
+                draggable={false}
+                style={{ width: '120px', height: '120px', objectFit: 'contain', transformOrigin: 'center bottom', filter: darkMode ? 'invert(1)' : 'none', display: 'block', userSelect: 'none' }}
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Current reflection — subtle narrator line above the input ── */}
+      {latestResponse?.reflection && (
+        <p style={{ position: 'absolute', bottom: '74px', left: '50%', transform: 'translateX(-50%)', width: 'min(90vw, 460px)', margin: 0, textAlign: 'center', fontFamily: SERIF, fontStyle: 'italic', fontSize: '12px', color: T.muted, lineHeight: 1.6, zIndex: 3, pointerEvents: 'none' }}>
+          {latestResponse.reflection}
+        </p>
+      )}
+
+      {error && (
+        <p style={{ position: 'absolute', bottom: '74px', left: '50%', transform: 'translateX(-50%)', margin: 0, fontFamily: MONO, fontSize: '11px', color: '#c0392b', zIndex: 3 }}>
+          {error}
+        </p>
+      )}
+
+      {/* ── Minimal input: crumb + say ── */}
+      <div className="input-bar" style={{ position: 'absolute', bottom: 0, left: 0, right: 0, zIndex: 4, display: 'flex', justifyContent: 'center', padding: '0 16px 14px', paddingBottom: 'max(14px, env(safe-area-inset-bottom))' }}>
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center', width: 'min(94vw, 420px)' }}>
           <button
-            type="submit"
-            disabled={isLoading || !message.trim()}
-            aria-label="send"
-            style={{ flexShrink: 0, width: '44px', height: '44px', borderRadius: '50%', background: isLoading || !message.trim() ? T.border : T.ink, color: isLoading || !message.trim() ? T.muted : T.pageBg, border: 'none', cursor: isLoading || !message.trim() ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px', transition: 'background 0.2s ease' }}
+            type="button"
+            disabled={isLoading}
+            onClick={() => { if (!isLoading) void sendInteraction({ type: 'action', action: 'feed crumb' }) }}
+            title="feed a crumb"
+            style={{ flexShrink: 0, width: '44px', height: '44px', borderRadius: '50%', background: T.inputBg, border: `1px solid ${T.border}`, fontFamily: MONO, fontSize: '15px', color: T.ink, cursor: isLoading ? 'not-allowed' : 'pointer', opacity: isLoading ? 0.4 : 1, backdropFilter: 'blur(6px)' }}
           >
-            ↑
+            ·
           </button>
-        </form>
+          <form onSubmit={handleSubmit} style={{ flex: 1, display: 'flex' }}>
+            <input
+              type="text"
+              value={message}
+              onChange={e => setMessage(e.target.value)}
+              placeholder={isLoading ? 'crappy bird is thinking...' : 'say something, or tap the bird...'}
+              disabled={isLoading}
+              style={{ flex: 1, minWidth: 0, height: '44px', padding: '0 16px', border: `1px solid ${T.border}`, borderRadius: '22px', background: T.inputBg, fontFamily: MONO, fontSize: '16px', color: T.ink, outline: 'none', backdropFilter: 'blur(6px)' }}
+            />
+          </form>
+        </div>
       </div>
     </div>
   )

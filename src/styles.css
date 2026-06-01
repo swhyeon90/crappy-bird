@@ -4,9 +4,8 @@
   color-scheme: light dark;
 }
 
-/* Full-viewport shell — chat area scrolls, the page itself does not.
-   100dvh shrinks when the software keyboard appears on Android/iOS so
-   the input bar stays visible without extra JS. */
+/* Full-viewport playground — the bird's whole world. The page itself does
+   not scroll; 100dvh keeps the input above the mobile keyboard. */
 .app-shell {
   height: 100vh;        /* fallback for very old browsers  */
   height: 100dvh;       /* preferred — keyboard-aware      */
@@ -17,32 +16,6 @@
 .app-shell [role='button'] {
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;   /* no 300 ms tap delay */
-}
-
-/* Chat scroll area: native momentum scrolling on iOS */
-.chat-scroll {
-  overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
-  overscroll-behavior-y: contain;   /* prevent pull-to-refresh leaking */
-}
-
-/* Input bar: clears the iPhone home-bar / notch at the bottom */
-.input-bar {
-  padding-bottom: max(10px, env(safe-area-inset-bottom));
-}
-
-/* Bird stage: shrinks gently on very short screens (e.g. landscape phone) */
-.bird-stage {
-  height: 40vh;
-  min-height: 160px;
-  max-height: 300px;
-}
-@media (max-height: 500px) {
-  .bird-stage {
-    height: 30vh;
-    min-height: 100px;
-    max-height: 140px;
-  }
 }
 
 body {
