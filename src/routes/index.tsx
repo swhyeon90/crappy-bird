@@ -255,6 +255,38 @@ function App() {
   return (
     <div style={{ minHeight: '100vh', background: T.pageBg, display: 'flex', flexDirection: 'column' }}>
 
+      {/*
+       * Inline SVG filter defs — referenced by the bird img below.
+       *
+       * feColorMatrix trick: set alpha = 1 − R  (works for B&W images where R=G=B).
+       *   white pixel (R=1) → alpha 0  →  transparent  (PNG bg disappears)
+       *   black pixel (R=0) → alpha 1  →  fully opaque
+       *
+       * Light filter: keeps RGB, makes white transparent.
+       * Dark filter:  inverts RGB first (black ink → white), then same alpha rule.
+       *
+       * No mix-blend-mode needed — the PNG background is made truly transparent,
+       * so the bird sits cleanly on any background including dark mode on mobile.
+       */}
+      <svg aria-hidden focusable="false" style={{ position: 'absolute', width: 0, height: 0 }}>
+        <defs>
+          <filter id="bird-filter-light">
+            <feColorMatrix type="matrix"
+              values="1  0  0  0  0
+                      0  1  0  0  0
+                      0  0  1  0  0
+                      -1 0  0  0  1" />
+          </filter>
+          <filter id="bird-filter-dark">
+            <feColorMatrix type="matrix"
+              values="-1 0  0  0  1
+                      0  -1 0  0  1
+                      0  0  -1 0  1
+                      -1 0  0  0  1" />
+          </filter>
+        </defs>
+      </svg>
+
       {/* ── Bird stage — the bird roams freely in here ── */}
       <div
         style={{
@@ -334,15 +366,7 @@ function App() {
                   height: '130px',
                   objectFit: 'contain',
                   transformOrigin: 'center bottom',
-                  /*
-                   * Light: multiply makes white PNG bg match the light page bg,
-                   *        black ink stays dark.
-                   * Dark:  invert flips the image (black ink → white, white bg → black),
-                   *        then screen makes the black bg match the dark page while
-                   *        white ink stays bright.
-                   */
-                  filter: darkMode ? 'invert(1)' : 'none',
-                  mixBlendMode: darkMode ? 'screen' : 'multiply',
+                  filter: `url(#bird-filter-${darkMode ? 'dark' : 'light'})`,
                   display: 'block',
                 }}
               />
