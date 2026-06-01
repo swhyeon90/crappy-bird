@@ -16,12 +16,12 @@ code {
 
 /* ── Bird animation classes ─────────────────────────────────────────────── */
 
-/* Gentle weight-shift: rotates from the feet, no vertical float */
+/* Gentle weight-shift pivot from the feet — no vertical float */
 .bird-idle {
   animation: birdSway 5s ease-in-out infinite;
 }
 
-/* Faster impatient sway while loading */
+/* Impatient faster sway while waiting for a response */
 .bird-loading {
   animation: birdSway 1.3s ease-in-out infinite;
 }
@@ -62,14 +62,13 @@ code {
   animation: birdBlink 0.6s ease-in-out;
 }
 
-/* Crumb drop-in + fade-out */
 .crumb-particle {
   animation: crumbLife 2.4s ease-out forwards;
 }
 
 /* ── Keyframes ───────────────────────────────────────────────────────────── */
 
-/* Idle: subtle weight-shift pivot from feet — no translateY */
+/* Idle: slight weight-shift rotation from feet, stays grounded */
 @keyframes birdSway {
   0%, 100% { transform: rotate(0deg); }
   28%       { transform: rotate(-1.1deg); }
@@ -91,10 +90,10 @@ code {
 }
 
 @keyframes birdFlinch {
-  0%   { transform: translateX(0)    scale(1); }
+  0%   { transform: translateX(0)     scale(1); }
   25%  { transform: translateX(-14px) scale(0.91); }
   65%  { transform: translateX(-5px)  scale(0.97); }
-  100% { transform: translateX(0)    scale(1); }
+  100% { transform: translateX(0)     scale(1); }
 }
 
 @keyframes birdTilt {
