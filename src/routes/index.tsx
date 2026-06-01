@@ -60,8 +60,6 @@ const LT = {
   barBg:       '#e4dcd4',
   barFill:     '#c8964e',
   sendBg:      '#4e7bbf',
-  toggleBg:    '#e8e2dc',
-  toggleColor: '#7a6e66',
   divider:     '#d4c8be',
 }
 
@@ -77,8 +75,6 @@ const DK = {
   barBg:       '#3a342c',
   barFill:     '#c8964e',
   sendBg:      '#3a5e8c',
-  toggleBg:    '#2a2420',
-  toggleColor: '#9e9080',
   divider:     '#3a342c',
 }
 
@@ -97,7 +93,9 @@ function App() {
   const [showCrumb, setShowCrumb] = useState(false)
   const [debugOpen, setDebugOpen] = useState(false)
   const [darkMode, setDarkMode] = useState(() =>
-    typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches
+    typeof window !== 'undefined'
+      ? window.matchMedia('(prefers-color-scheme: dark)').matches
+      : false   // default to light on SSR
   )
   /* Bird position as % of stage dimensions */
   const [birdPos, setBirdPos] = useState({ x: 50, y: 60 })
@@ -115,6 +113,14 @@ function App() {
   const interactionLog = [...interactions].reverse()
 
   const T = darkMode ? DK : LT
+
+  /* Track system color-scheme changes reactively */
+  useEffect(() => {
+    const mq = window.matchMedia('(prefers-color-scheme: dark)')
+    const handler = (e: MediaQueryListEvent) => setDarkMode(e.matches)
+    mq.addEventListener('change', handler)
+    return () => mq.removeEventListener('change', handler)
+  }, [])
 
   /* Sync body background so there's no seam outside the root div */
   useEffect(() => {
@@ -248,30 +254,6 @@ function App() {
 
   return (
     <div style={{ minHeight: '100vh', background: T.pageBg, display: 'flex', flexDirection: 'column' }}>
-
-      {/* ── Dark / light toggle ── */}
-      <button
-        type="button"
-        onClick={() => setDarkMode((p) => !p)}
-        style={{
-          position: 'fixed',
-          top: '12px',
-          right: '16px',
-          zIndex: 100,
-          padding: '4px 12px',
-          background: T.toggleBg,
-          color: T.toggleColor,
-          border: `1.5px solid ${T.softBorder}`,
-          borderRadius: '20px',
-          fontFamily: MONO,
-          fontSize: '10px',
-          letterSpacing: '1.5px',
-          textTransform: 'uppercase',
-          cursor: 'pointer',
-        }}
-      >
-        {darkMode ? 'light' : 'dark'}
-      </button>
 
       {/* ── Bird stage — the bird roams freely in here ── */}
       <div
