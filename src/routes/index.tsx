@@ -64,7 +64,7 @@ const LT = {
 }
 
 const DK = {
-  pageBg:      '#1c1814',
+  pageBg:      '#000000',  // pure black: inverted PNG white bg (#000) matches perfectly
   ink:         '#e0d8cc',
   muted:       '#9e9080',
   softBorder:  '#3a342c',
@@ -255,37 +255,6 @@ function App() {
   return (
     <div style={{ minHeight: '100vh', background: T.pageBg, display: 'flex', flexDirection: 'column' }}>
 
-      {/*
-       * Inline SVG colour-remap filters — no transparency used.
-       *
-       * Previous approach made white pixels alpha=0 (transparent).
-       * On mobile the GPU compositing layer clears to black, so transparent
-       * pixels showed black instead of the page background. Fix: keep every
-       * pixel fully opaque by remapping white → exact page bg colour.
-       *
-       * Light (#f0ede8 = 0.941 / 0.929 / 0.910):
-       *   newChannel = input × bg_channel
-       *   black ink (0) → 0          (stays black on light bg)
-       *   white bg  (1) → bg_channel (blends into page)
-       *
-       * Dark (#1c1814 = 0.110 / 0.094 / 0.078):
-       *   newChannel = 1 − (1 − bg_channel) × input
-       *   black ink (0) → 1          (becomes white, visible on dark bg)
-       *   white bg  (1) → bg_channel (blends into page)
-       *
-       * Alpha row kept as-is (all pixels remain fully opaque).
-       */}
-      <svg aria-hidden focusable="false" style={{ position: 'absolute', width: 0, height: 0, overflow: 'hidden' }}>
-        <defs>
-          <filter id="bird-filter-light" x="0" y="0" width="100%" height="100%">
-            <feColorMatrix type="matrix" values="0.941 0 0 0 0  0 0.929 0 0 0  0 0 0.910 0 0  0 0 0 1 0" />
-          </filter>
-          <filter id="bird-filter-dark" x="0" y="0" width="100%" height="100%">
-            <feColorMatrix type="matrix" values="-0.890 0 0 0 1  0 -0.906 0 0 1  0 0 -0.922 0 1  0 0 0 1 0" />
-          </filter>
-        </defs>
-      </svg>
-
       {/* ── Bird stage — the bird roams freely in here ── */}
       <div
         style={{
@@ -365,7 +334,10 @@ function App() {
                   height: '130px',
                   objectFit: 'contain',
                   transformOrigin: 'center bottom',
-                  filter: `url(#bird-filter-${darkMode ? 'dark' : 'light'})`,
+                  /* invert(1) flips ink→white and bg→black; since dark pageBg
+                   * is #000 the black background is invisible. Light mode: no filter,
+                   * white PNG bg sits on #f0ede8 — the slight difference is acceptable. */
+                  filter: darkMode ? 'invert(1)' : 'none',
                   display: 'block',
                 }}
               />
