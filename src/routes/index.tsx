@@ -64,7 +64,7 @@ const LT = {
 }
 
 const DK = {
-  pageBg:      '#1a1714',
+  pageBg:      '#000000',  // pure black: inverted PNG white bg (#000) matches perfectly
   ink:         '#e0d8cc',
   muted:       '#9e9080',
   softBorder:  '#3a342c',
@@ -325,34 +325,22 @@ function App() {
                   }}
                 />
               )}
-              {/*
-               * The PNG has a white background that cannot be made transparent
-               * reliably across all mobile browsers (Samsung Internet ignores
-               * CSS filters applied inside compositing layers from parent
-               * transforms). Solution: always render on an explicit white
-               * surface — black ink on white is maximum contrast everywhere.
-               * The rounded white pad looks intentional in both themes.
-               */}
-              <div style={{
-                background: '#ffffff',
-                borderRadius: '50%',
-                padding: '6px',
-                display: 'inline-block',
-                lineHeight: 0,
-              }}>
-                <img
-                  src={CrappyBirdFullBody}
-                  alt="Crappy Bird"
-                  className={birdClass}
-                  style={{
-                    width: '118px',
-                    height: '118px',
-                    objectFit: 'contain',
-                    transformOrigin: 'center bottom',
-                    display: 'block',
-                  }}
-                />
-              </div>
+              <img
+                src={CrappyBirdFullBody}
+                alt="Crappy Bird"
+                className={birdClass}
+                style={{
+                  width: '130px',
+                  height: '130px',
+                  objectFit: 'contain',
+                  transformOrigin: 'center bottom',
+                  /* invert(1) flips ink→white and bg→black; since dark pageBg
+                   * is #000 the black background is invisible. Light mode: no filter,
+                   * white PNG bg sits on #f0ede8 — the slight difference is acceptable. */
+                  filter: darkMode ? 'invert(1)' : 'none',
+                  display: 'block',
+                }}
+              />
             </div>
           </div>
           </div>{/* end hop wrapper */}
