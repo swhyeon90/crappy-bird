@@ -16,12 +16,14 @@ code {
 
 /* ── Bird animation classes ─────────────────────────────────────────────── */
 
+/* Gentle weight-shift: rotates from the feet, no vertical float */
 .bird-idle {
-  animation: birdBob 3.2s ease-in-out infinite;
+  animation: birdSway 5s ease-in-out infinite;
 }
 
+/* Faster impatient sway while loading */
 .bird-loading {
-  animation: birdBob 1.1s ease-in-out infinite;
+  animation: birdSway 1.3s ease-in-out infinite;
 }
 
 .bird-peck {
@@ -67,9 +69,11 @@ code {
 
 /* ── Keyframes ───────────────────────────────────────────────────────────── */
 
-@keyframes birdBob {
-  0%, 100% { transform: translateY(0px); }
-  50%       { transform: translateY(-6px); }
+/* Idle: subtle weight-shift pivot from feet — no translateY */
+@keyframes birdSway {
+  0%, 100% { transform: rotate(0deg); }
+  28%       { transform: rotate(-1.1deg); }
+  68%       { transform: rotate(0.8deg); }
 }
 
 @keyframes birdPeck {

@@ -154,64 +154,61 @@ function App() {
   const intimPct = (intimacyLevel / INTIMACY_MAX) * 100
   const birdClass = isLoading && birdAnim === 'bird-idle' ? 'bird-loading' : birdAnim
 
+  const bubbleChat = isLoading
+    ? '...'
+    : latestResponse?.chat?.trim()
+      ? latestResponse.chat
+      : '...'
+
   return (
     <div style={S.page}>
-      <div style={S.container}>
 
-        {/* ── Title ── */}
-        <p style={S.title}>crappy bird</p>
+      {/* ── Sky environment ── */}
+      <div style={S.sky}>
 
-        {/* ── Scene ── */}
-        <div style={S.scene}>
-          {/* Sky */}
-          <div style={S.sky}>
-            {/* Speech bubble */}
-            <div style={S.bubble}>
-              <span style={S.bubbleText}>
-                {isLoading
-                  ? '...'
-                  : latestResponse?.chat?.trim()
-                    ? latestResponse.chat
-                    : '...'}
-              </span>
-              {/* Triangle tail */}
-              <div style={S.tailOuter} />
-              <div style={S.tailInner} />
-            </div>
-
-            {/* Bird + crumb */}
-            <div style={S.birdWrapper}>
-              {showCrumb && <div className="crumb-particle" style={S.crumb} />}
-              <img
-                src={CrappyBirdFullBody}
-                alt="Crappy Bird"
-                className={birdClass}
-                style={S.bird}
-              />
-            </div>
-          </div>
-
-          {/* Ground strip */}
-          <div style={S.ground}>
-            <div style={S.tuft1} />
-            <div style={S.tuft2} />
-            <div style={S.tuft3} />
-            <div style={S.tuft4} />
-          </div>
+        {/* Speech bubble — floats in upper sky, centered above the bird */}
+        <div style={S.bubble}>
+          <span style={S.bubbleText}>{bubbleChat}</span>
+          <div style={S.tailOuter} />
+          <div style={S.tailInner} />
         </div>
 
-        {/* ── Status pills ── */}
+        {/* Bird anchored to the ground line */}
+        <div style={S.birdAnchor}>
+          <div style={{ position: 'relative' }}>
+            {showCrumb && <div className="crumb-particle" style={S.crumb} />}
+            <img
+              src={CrappyBirdFullBody}
+              alt="Crappy Bird"
+              className={birdClass}
+              style={S.bird}
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* ── Ground strip ── */}
+      <div style={S.ground}>
+        <div style={S.tuft1} />
+        <div style={S.tuft2} />
+        <div style={S.tuft3} />
+        <div style={S.tuft4} />
+        <div style={S.tuft5} />
+        <div style={S.tuft6} />
+      </div>
+
+      {/* ── Controls ── */}
+      <div style={S.controls}>
+
         <div style={S.pillRow}>
           <span style={S.pill}>mood: {mood}</span>
           <span style={S.pill}>{activity}</span>
         </div>
 
-        {/* ── Reflection ── */}
         <p style={S.reflection}>
           {latestResponse?.reflection ?? 'the air feels still. crappy bird watches quietly.'}
         </p>
 
-        {/* ── Action buttons ── */}
         <div style={S.actionsRow}>
           {ACTIONS.map((action) => (
             <button
@@ -226,7 +223,6 @@ function App() {
           ))}
         </div>
 
-        {/* ── Chat form ── */}
         <form onSubmit={handleSubmit} style={S.chatForm}>
           <input
             type="text"
@@ -247,7 +243,6 @@ function App() {
 
         {error && <p style={S.errorText}>{error}</p>}
 
-        {/* ── Interaction log ── */}
         {interactionLog.length > 0 && (
           <div style={S.log}>
             <div style={S.logHeader}>recent</div>
@@ -284,7 +279,7 @@ function App() {
           </div>
         )}
 
-        {/* ── Debug panel ── */}
+        {/* Debug panel */}
         <div style={S.debugSection}>
           <button
             type="button"
@@ -297,12 +292,8 @@ function App() {
           {debugOpen && (
             <div style={S.debugPanel}>
               <div style={S.intimacyRow}>
-                <span>
-                  intimacy — {intimacyLabel(intimacyLevel)}
-                </span>
-                <span>
-                  {intimacyLevel} / {INTIMACY_MAX}
-                </span>
+                <span>intimacy — {intimacyLabel(intimacyLevel)}</span>
+                <span>{intimacyLevel} / {INTIMACY_MAX}</span>
               </div>
               <div style={S.bar}>
                 <div style={{ ...S.barFill, width: `${intimPct}%` }} />
@@ -317,20 +308,12 @@ function App() {
                   max={INTIMACY_MAX}
                   style={S.debugInput}
                 />
-                <button type="submit" style={S.debugApply}>
-                  apply
-                </button>
+                <button type="submit" style={S.debugApply}>apply</button>
                 <button
                   type="button"
-                  onClick={() => {
-                    setIntimacy(INTIMACY_MIN)
-                    setIntimacyLevel(INTIMACY_MIN)
-                  }}
+                  onClick={() => { setIntimacy(INTIMACY_MIN); setIntimacyLevel(INTIMACY_MIN) }}
                   disabled={intimacyLevel === INTIMACY_MIN}
-                  style={{
-                    ...S.debugReset,
-                    opacity: intimacyLevel === INTIMACY_MIN ? 0.4 : 1,
-                  }}
+                  style={{ ...S.debugReset, opacity: intimacyLevel === INTIMACY_MIN ? 0.4 : 1 }}
                 >
                   reset
                 </button>
@@ -358,53 +341,31 @@ const S: Record<string, CSSProperties> = {
     background: '#f0ede8',
     display: 'flex',
     flexDirection: 'column',
-    alignItems: 'center',
-    padding: '28px 16px 56px',
-  },
-  container: {
-    width: '100%',
-    maxWidth: '420px',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '18px',
   },
 
-  /* header */
-  title: {
-    margin: 0,
-    textAlign: 'center',
-    fontFamily: MONO,
-    fontSize: '11px',
-    letterSpacing: '3.5px',
-    color: MUTED,
-    textTransform: 'uppercase',
-  },
-
-  /* scene */
-  scene: {
-    borderRadius: '14px',
-    overflow: 'hidden',
-    border: `2.5px solid ${INK}`,
-    boxShadow: `4px 4px 0 ${INK}`,
-  },
+  /* Full-width sky — no frame, no border, bird lives here */
   sky: {
-    background: 'linear-gradient(180deg, #d4e9f7 0%, #e8f4ff 50%, #f5f0e8 100%)',
-    height: '250px',
+    background: 'linear-gradient(180deg, #c0d8ee 0%, #d4eaf8 40%, #eaf4ff 72%, #f5f0e4 100%)',
+    minHeight: '280px',
+    height: '38vh',
+    maxHeight: '420px',
     position: 'relative',
-    display: 'flex',
-    alignItems: 'flex-end',
-    justifyContent: 'center',
+    overflow: 'hidden',
   },
+
+  /* Centered speech bubble, floats in upper half of sky */
   bubble: {
     position: 'absolute',
-    top: '18px',
-    left: '18px',
-    right: '18px',
+    top: '20px',
+    left: '50%',
+    transform: 'translateX(-50%)',
+    width: '220px',
     background: 'white',
     border: `2px solid ${INK}`,
     borderRadius: '10px',
     padding: '10px 14px',
     textAlign: 'center',
+    zIndex: 2,
   },
   bubbleText: {
     display: 'block',
@@ -414,7 +375,7 @@ const S: Record<string, CSSProperties> = {
     lineHeight: '1.65',
     minHeight: '18px',
   },
-  /* downward triangle tail, centered on the bubble's bottom edge */
+  /* Triangle tail points down toward bird */
   tailOuter: {
     position: 'absolute',
     bottom: '-11px',
@@ -437,15 +398,19 @@ const S: Record<string, CSSProperties> = {
     borderRight: '8px solid transparent',
     borderTop: '9px solid white',
   },
-  birdWrapper: {
-    position: 'relative',
+
+  /* Bird sits right at the bottom edge of the sky (the ground line) */
+  birdAnchor: {
+    position: 'absolute',
+    bottom: 0,
+    left: '50%',
+    transform: 'translateX(-50%)',
     zIndex: 1,
-    marginBottom: '-2px',
   },
   crumb: {
     position: 'absolute',
-    bottom: '10px',
-    right: '-8px',
+    bottom: '12px',
+    right: '-10px',
     width: '9px',
     height: '7px',
     background: '#c8964e',
@@ -456,26 +421,42 @@ const S: Record<string, CSSProperties> = {
     width: '130px',
     height: '130px',
     objectFit: 'contain',
+    /* pivot rotations around the feet (bottom of image) */
     transformOrigin: 'center bottom',
+    /* blend white PNG background into the sky */
     mixBlendMode: 'multiply',
     display: 'block',
   },
+
+  /* Ground strip — full viewport width, no border, connects to sky naturally */
   ground: {
-    background: 'linear-gradient(180deg, #bed994 0%, #a8c46e 100%)',
-    height: '42px',
-    borderTop: `2px solid ${INK}`,
+    background: 'linear-gradient(180deg, #c4dc96 0%, #a8c46c 100%)',
+    height: '56px',
+    borderTop: `2.5px solid ${INK}`,
     display: 'flex',
+    justifyContent: 'center',
     alignItems: 'flex-start',
-    paddingTop: '7px',
-    paddingLeft: '12px',
+    paddingTop: '8px',
     gap: '8px',
   },
-  tuft1: { width: '13px', height: '10px', background: '#80a44a', borderRadius: '60% 60% 0 0', border: `1.5px solid ${INK}` },
-  tuft2: { width: '9px',  height: '6px',  background: '#80a44a', borderRadius: '60% 60% 0 0', border: `1.5px solid ${INK}` },
-  tuft3: { width: '11px', height: '8px',  background: '#80a44a', borderRadius: '60% 60% 0 0', border: `1.5px solid ${INK}` },
-  tuft4: { width: '7px',  height: '5px',  background: '#80a44a', borderRadius: '60% 60% 0 0', border: `1.5px solid ${INK}` },
+  tuft1: { width: '7px',  height: '5px',  background: '#7ca040', borderRadius: '60% 60% 0 0', border: `1.5px solid ${INK}` },
+  tuft2: { width: '13px', height: '9px',  background: '#7ca040', borderRadius: '60% 60% 0 0', border: `1.5px solid ${INK}` },
+  tuft3: { width: '9px',  height: '6px',  background: '#7ca040', borderRadius: '60% 60% 0 0', border: `1.5px solid ${INK}` },
+  tuft4: { width: '14px', height: '10px', background: '#7ca040', borderRadius: '60% 60% 0 0', border: `1.5px solid ${INK}` },
+  tuft5: { width: '10px', height: '7px',  background: '#7ca040', borderRadius: '60% 60% 0 0', border: `1.5px solid ${INK}` },
+  tuft6: { width: '8px',  height: '5px',  background: '#7ca040', borderRadius: '60% 60% 0 0', border: `1.5px solid ${INK}` },
 
-  /* status */
+  /* Controls: centered, warm off-white (matches page background) */
+  controls: {
+    maxWidth: '440px',
+    width: '100%',
+    margin: '0 auto',
+    padding: '24px 16px 56px',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '18px',
+  },
+
   pillRow: {
     display: 'flex',
     gap: '8px',
@@ -502,7 +483,6 @@ const S: Record<string, CSSProperties> = {
     lineHeight: '1.75',
   },
 
-  /* actions */
   actionsRow: {
     display: 'flex',
     gap: '10px',
@@ -523,7 +503,6 @@ const S: Record<string, CSSProperties> = {
     transition: 'opacity 0.15s',
   },
 
-  /* chat */
   chatForm: { display: 'flex', gap: '8px' },
   chatInput: {
     flex: 1,
@@ -557,7 +536,6 @@ const S: Record<string, CSSProperties> = {
     textAlign: 'center',
   },
 
-  /* log */
   log: {
     display: 'flex',
     flexDirection: 'column',
@@ -589,7 +567,6 @@ const S: Record<string, CSSProperties> = {
   logReflection: { color: '#9e8e84', fontStyle: 'italic', fontSize: '10px', marginBottom: '3px' },
   logDelta:      { fontSize: '10px', fontWeight: 'bold' },
 
-  /* debug */
   debugSection: {
     borderTop: `1px solid ${SOFT_BORDER}`,
     paddingTop: '12px',
@@ -636,11 +613,7 @@ const S: Record<string, CSSProperties> = {
     alignItems: 'center',
     flexWrap: 'wrap',
   },
-  debugLabel: {
-    fontFamily: MONO,
-    fontSize: '11px',
-    color: MUTED,
-  },
+  debugLabel: { fontFamily: MONO, fontSize: '11px', color: MUTED },
   debugInput: {
     width: '72px',
     padding: '4px 8px',
