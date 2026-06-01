@@ -66,6 +66,11 @@ code {
   animation: crumbLife 2.4s ease-out forwards;
 }
 
+/* Vertical hops layered on top of the left/top position transition */
+.bird-hop {
+  animation: birdHop 2.8s ease-in-out;
+}
+
 /* ── Keyframes ───────────────────────────────────────────────────────────── */
 
 /* Idle: slight weight-shift rotation from feet, stays grounded */
@@ -131,6 +136,20 @@ code {
 @keyframes birdBlink {
   0%, 78%, 100% { opacity: 1; }
   88%           { opacity: 0.5; }
+}
+
+/* 3 hops with decaying height — runs simultaneously with left/top glide */
+@keyframes birdHop {
+  0%   { transform: translateY(0px); }
+  10%  { transform: translateY(-24px); }
+  21%  { transform: translateY(0px); }
+  32%  { transform: translateY(-17px); }
+  43%  { transform: translateY(0px); }
+  53%  { transform: translateY(-9px); }
+  62%  { transform: translateY(0px); }
+  70%  { transform: translateY(-3px); }
+  77%  { transform: translateY(0px); }
+  100% { transform: translateY(0px); }
 }
 
 @keyframes crumbLife {

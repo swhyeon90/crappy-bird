@@ -102,9 +102,13 @@ function App() {
   /* Bird position as % of stage dimensions */
   const [birdPos, setBirdPos] = useState({ x: 50, y: 60 })
   const [facingRight, setFacingRight] = useState(true)
+  const [isRoaming, setIsRoaming] = useState(false)
+  const [showBubble, setShowBubble] = useState(false)
 
-  const animTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const roamTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const animTimer    = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const roamTimer    = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const roamEndTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const bubbleTimer  = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const latestResponse =
     interactions.length > 0 ? interactions[interactions.length - 1].response : null
@@ -131,6 +135,14 @@ function App() {
     animTimer.current = setTimeout(() => setBirdAnim('bird-idle'), match.ms)
   }, [latestResponse])
 
+  /* Show bubble when bird responds, auto-hide after 7 s */
+  useEffect(() => {
+    if (!latestResponse) return
+    setShowBubble(true)
+    if (bubbleTimer.current) clearTimeout(bubbleTimer.current)
+    bubbleTimer.current = setTimeout(() => setShowBubble(false), 7000)
+  }, [latestResponse])
+
   /* Autonomous roaming — starts after 12 s, repeats every 10–22 s */
   useEffect(() => {
     const scheduleRoam = () => {
@@ -141,11 +153,18 @@ function App() {
           setFacingRight(newX >= prev.x)
           return { x: newX, y: newY }
         })
+        /* Kick off hop animation for the same duration as the position transition */
+        setIsRoaming(true)
+        if (roamEndTimer.current) clearTimeout(roamEndTimer.current)
+        roamEndTimer.current = setTimeout(() => setIsRoaming(false), 2800)
         scheduleRoam()
       }, 10000 + Math.random() * 12000)
     }
     roamTimer.current = setTimeout(scheduleRoam, 12000)
-    return () => { if (roamTimer.current) clearTimeout(roamTimer.current) }
+    return () => {
+      if (roamTimer.current)    clearTimeout(roamTimer.current)
+      if (roamEndTimer.current) clearTimeout(roamEndTimer.current)
+    }
   }, [])
 
   const applyDelta = (delta: number) => {
@@ -274,13 +293,12 @@ function App() {
             zIndex: 1,
           }}
         >
-          {/* Speech bubble — floats just above the bird's head */}
+          {/* Speech bubble — appears on response, fades out after 7 s */}
           <div
             style={{
               position: 'absolute',
-              bottom: '126px',
+              bottom: '190px',
               left: '50%',
-              transform: 'translateX(-50%)',
               width: '180px',
               background: T.bubbleBg,
               border: `2px solid ${T.ink}`,
@@ -289,6 +307,11 @@ function App() {
               textAlign: 'center',
               zIndex: 2,
               boxShadow: darkMode ? 'none' : '0 2px 8px rgba(0,0,0,0.06)',
+              /* fade + slight float */
+              opacity: showBubble ? 1 : 0,
+              transform: `translateX(-50%) translateY(${showBubble ? 0 : -6}px)`,
+              transition: 'opacity 0.4s ease, transform 0.4s ease',
+              pointerEvents: showBubble ? 'auto' : 'none',
             }}
           >
             <span style={{ display: 'block', fontFamily: MONO, fontSize: '12px', color: T.ink, lineHeight: 1.6, minHeight: '18px' }}>
@@ -298,6 +321,9 @@ function App() {
             <div style={{ position: 'absolute', bottom: '-11px', left: '50%', transform: 'translateX(-50%)', width: 0, height: 0, borderLeft: '9px solid transparent', borderRight: '9px solid transparent', borderTop: `11px solid ${T.ink}` }} />
             <div style={{ position: 'absolute', bottom: '-8px',  left: '50%', transform: 'translateX(-50%)', width: 0, height: 0, borderLeft: '8px solid transparent', borderRight: '8px solid transparent', borderTop: `9px solid ${T.bubbleBg}` }} />
           </div>
+
+          {/* Hop wrapper — bounces vertically during a roam, independent of the position glide */}
+          <div className={isRoaming ? 'bird-hop' : ''} style={{ transformOrigin: 'center bottom' }}>
 
           {/* Horizontal flip wrapper — mirrors bird when walking left */}
           <div style={{ transform: `scaleX(${facingRight ? 1 : -1})`, transition: 'transform 0.4s ease' }}>
@@ -340,6 +366,7 @@ function App() {
               />
             </div>
           </div>
+          </div>{/* end hop wrapper */}
         </div>
       </div>
 
