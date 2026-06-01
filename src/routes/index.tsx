@@ -327,11 +327,14 @@ function App() {
                   objectFit: 'contain',
                   transformOrigin: 'center bottom',
                   /*
-                   * multiply: white pixels of the PNG become the page background,
-                   * black ink stays dark — works in both light and dark mode
-                   * as long as pageBg is not pure white / pure black.
+                   * Light: multiply makes white PNG bg match the light page bg,
+                   *        black ink stays dark.
+                   * Dark:  invert flips the image (black ink → white, white bg → black),
+                   *        then screen makes the black bg match the dark page while
+                   *        white ink stays bright.
                    */
-                  mixBlendMode: 'multiply',
+                  filter: darkMode ? 'invert(1)' : 'none',
+                  mixBlendMode: darkMode ? 'screen' : 'multiply',
                   display: 'block',
                 }}
               />
