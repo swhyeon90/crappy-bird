@@ -263,7 +263,7 @@ function App() {
       </div>
 
       {/* ── Bird stage ──────────────────────────────────────────────────────── */}
-      <div style={{ flexShrink: 0, height: '40vh', minHeight: '180px', maxHeight: '300px', position: 'relative', overflow: 'hidden', borderBottom: `1px solid ${T.divider}` }}>
+      <div className="bird-stage" style={{ flexShrink: 0, position: 'relative', overflow: 'hidden', borderBottom: `1px solid ${T.divider}` }}>
 
         {/* Roaming bird */}
         <div style={{ position: 'absolute', left: `${birdPos.x}%`, top: `${birdPos.y}%`, transform: 'translate(-50%, -50%)', transition: 'left 2.8s ease-in-out, top 2.8s ease-in-out', zIndex: 1 }}>
@@ -294,11 +294,11 @@ function App() {
 
         {/* Activity strip inside stage — bottom edge */}
         <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: '6px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <span style={{ fontFamily: MONO, fontSize: '9px', color: T.muted, letterSpacing: '1px', textTransform: 'lowercase', opacity: 0.8 }}>
+          <span style={{ fontFamily: MONO, fontSize: '11px', color: T.muted, letterSpacing: '1px', textTransform: 'lowercase', opacity: 0.8 }}>
             {activity}
           </span>
           {interactions.length === 0 && (
-            <span style={{ fontFamily: MONO, fontSize: '9px', color: T.muted, letterSpacing: '1px', opacity: 0.6 }}>
+            <span style={{ fontFamily: MONO, fontSize: '11px', color: T.muted, letterSpacing: '1px', opacity: 0.6 }}>
               tap to poke
             </span>
           )}
@@ -306,7 +306,7 @@ function App() {
       </div>
 
       {/* ── Chat log ────────────────────────────────────────────────────────── */}
-      <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
+      <div className="chat-scroll" style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
         <div style={{ flex: 1, padding: '20px 16px 12px', display: 'flex', flexDirection: 'column', gap: '18px' }}>
 
           {/* Empty state */}
@@ -370,35 +370,35 @@ function App() {
             <button
               type="button"
               onClick={() => setDebugOpen(p => !p)}
-              style={{ background: 'none', border: 'none', cursor: 'pointer', fontFamily: MONO, fontSize: '9px', color: T.muted, letterSpacing: '2px', padding: 0, textTransform: 'uppercase', opacity: 0.7 }}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', fontFamily: MONO, fontSize: '11px', color: T.muted, letterSpacing: '2px', padding: '8px 0', textTransform: 'uppercase', opacity: 0.7, minHeight: '44px', display: 'flex', alignItems: 'center' }}
             >
               {debugOpen ? '▲' : '▼'} debug
             </button>
             {debugOpen && (
               <div style={{ marginTop: '12px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: MONO, fontSize: '10px', color: T.muted }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: MONO, fontSize: '11px', color: T.muted }}>
                   <span>intimacy — {intimacyLabel(intimacyLevel)}</span>
                   <span>{intimacyLevel} / {INTIMACY_MAX}</span>
                 </div>
                 <div style={{ height: '4px', background: T.barBg, borderRadius: '2px', overflow: 'hidden' }}>
                   <div style={{ height: '100%', background: T.barFill, width: `${intimPct}%`, borderRadius: '2px', transition: 'width 0.35s ease' }} />
                 </div>
-                <form onSubmit={handleManualSubmit} style={{ display: 'flex', gap: '6px', alignItems: 'center', flexWrap: 'wrap' }}>
-                  <label style={{ fontFamily: MONO, fontSize: '10px', color: T.muted }}>set:</label>
+                <form onSubmit={handleManualSubmit} style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+                  <label style={{ fontFamily: MONO, fontSize: '11px', color: T.muted }}>set:</label>
                   <input
                     type="number"
                     value={manualIntimacy}
                     onChange={e => setManualIntimacy(e.target.value)}
                     min={INTIMACY_MIN}
                     max={INTIMACY_MAX}
-                    style={{ width: '70px', padding: '4px 8px', border: `1px solid ${T.border}`, borderRadius: '4px', fontFamily: MONO, fontSize: '10px', background: T.inputBg, color: T.ink, outline: 'none' }}
+                    style={{ width: '80px', padding: '8px 10px', border: `1px solid ${T.border}`, borderRadius: '8px', fontFamily: MONO, fontSize: '13px', background: T.inputBg, color: T.ink, outline: 'none' }}
                   />
-                  <button type="submit" style={{ padding: '4px 10px', background: T.ink, color: T.pageBg, border: 'none', borderRadius: '4px', fontFamily: MONO, fontSize: '10px', cursor: 'pointer' }}>apply</button>
+                  <button type="submit" style={{ padding: '8px 14px', background: T.ink, color: T.pageBg, border: 'none', borderRadius: '8px', fontFamily: MONO, fontSize: '12px', cursor: 'pointer', minHeight: '44px' }}>apply</button>
                   <button
                     type="button"
                     onClick={() => { setIntimacy(INTIMACY_MIN); setIntimacyLevel(INTIMACY_MIN) }}
                     disabled={intimacyLevel === INTIMACY_MIN}
-                    style={{ padding: '4px 10px', background: 'transparent', color: T.ink, border: `1px solid ${T.border}`, borderRadius: '4px', fontFamily: MONO, fontSize: '10px', cursor: 'pointer', opacity: intimacyLevel === INTIMACY_MIN ? 0.4 : 1 }}
+                    style={{ padding: '8px 14px', background: 'transparent', color: T.ink, border: `1px solid ${T.border}`, borderRadius: '8px', fontFamily: MONO, fontSize: '12px', cursor: 'pointer', opacity: intimacyLevel === INTIMACY_MIN ? 0.4 : 1, minHeight: '44px' }}
                   >
                     reset
                   </button>
@@ -411,33 +411,34 @@ function App() {
         </div>
       </div>
 
-      {/* ── Input bar ───────────────────────────────────────────────────────── */}
-      <div style={{ flexShrink: 0, borderTop: `1px solid ${T.divider}`, padding: '10px 12px', display: 'flex', gap: '8px', alignItems: 'center', background: T.pageBg }}>
-        {/* Feed crumb */}
+      {/* ── Input bar ─ stays above keyboard; safe-area clears iPhone home bar ── */}
+      <div className="input-bar" style={{ flexShrink: 0, borderTop: `1px solid ${T.divider}`, paddingTop: '10px', paddingLeft: '12px', paddingRight: '12px', display: 'flex', gap: '8px', alignItems: 'center', background: T.pageBg }}>
+        {/* Feed crumb — min 44 px tap target */}
         <button
           type="button"
           disabled={isLoading}
           onClick={() => { if (!isLoading) void sendInteraction({ type: 'action', action: 'feed crumb' }) }}
-          style={{ flexShrink: 0, padding: '8px 12px', background: 'transparent', border: `1px solid ${T.border}`, borderRadius: '20px', fontFamily: MONO, fontSize: '10px', color: T.muted, cursor: isLoading ? 'not-allowed' : 'pointer', letterSpacing: '0.5px', opacity: isLoading ? 0.4 : 1, transition: 'opacity 0.15s' }}
+          style={{ flexShrink: 0, minHeight: '44px', padding: '0 14px', background: 'transparent', border: `1px solid ${T.border}`, borderRadius: '22px', fontFamily: MONO, fontSize: '12px', color: T.muted, cursor: isLoading ? 'not-allowed' : 'pointer', letterSpacing: '0.5px', opacity: isLoading ? 0.4 : 1, transition: 'opacity 0.15s' }}
         >
           crumb
         </button>
 
         {/* Message input + send */}
-        <form onSubmit={handleSubmit} style={{ flex: 1, display: 'flex', gap: '6px', alignItems: 'center' }}>
+        <form onSubmit={handleSubmit} style={{ flex: 1, display: 'flex', gap: '8px', alignItems: 'center' }}>
           <input
             type="text"
             value={message}
             onChange={e => setMessage(e.target.value)}
             placeholder="say something..."
             disabled={isLoading}
-            style={{ flex: 1, minWidth: 0, padding: '8px 14px', border: `1px solid ${T.border}`, borderRadius: '20px', background: T.inputBg, fontFamily: MONO, fontSize: '13px', color: T.ink, outline: 'none' }}
+            /* fontSize ≥ 16px prevents iOS auto-zoom on input focus */
+            style={{ flex: 1, minWidth: 0, minHeight: '44px', padding: '0 16px', border: `1px solid ${T.border}`, borderRadius: '22px', background: T.inputBg, fontFamily: MONO, fontSize: '16px', color: T.ink, outline: 'none' }}
           />
           <button
             type="submit"
             disabled={isLoading || !message.trim()}
             aria-label="send"
-            style={{ flexShrink: 0, width: '36px', height: '36px', borderRadius: '50%', background: isLoading || !message.trim() ? T.border : T.ink, color: isLoading || !message.trim() ? T.muted : T.pageBg, border: 'none', cursor: isLoading || !message.trim() ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '15px', transition: 'background 0.2s ease' }}
+            style={{ flexShrink: 0, width: '44px', height: '44px', borderRadius: '50%', background: isLoading || !message.trim() ? T.border : T.ink, color: isLoading || !message.trim() ? T.muted : T.pageBg, border: 'none', cursor: isLoading || !message.trim() ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px', transition: 'background 0.2s ease' }}
           >
             ↑
           </button>
