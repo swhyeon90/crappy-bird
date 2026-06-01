@@ -22,7 +22,7 @@ type InteractionIntent =
   | { type: 'chat'; message: string }
   | { type: 'action'; action: UserAction }
 
-const ACTIONS: UserAction[] = ['poke', 'feed crumb']
+const ACTIONS: UserAction[] = ['feed crumb']
 const DEFAULT_CHAT_ACTION: UserAction = 'none'
 const clampIntimacy = (v: number) => Math.min(INTIMACY_MAX, Math.max(INTIMACY_MIN, v))
 
@@ -309,7 +309,14 @@ function App() {
 
           {/* Horizontal flip wrapper — mirrors bird when walking left */}
           <div style={{ transform: `scaleX(${facingRight ? 1 : -1})`, transition: 'transform 0.4s ease' }}>
-            <div style={{ position: 'relative' }}>
+            <div
+              role="button"
+              aria-label="poke crappy bird"
+              tabIndex={0}
+              onClick={() => { if (!isLoading) void sendInteraction({ type: 'action', action: 'poke' }) }}
+              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); if (!isLoading) void sendInteraction({ type: 'action', action: 'poke' }) } }}
+              style={{ position: 'relative', cursor: isLoading ? 'default' : 'pointer' }}
+            >
               {showCrumb && (
                 <div
                   className="crumb-particle"
