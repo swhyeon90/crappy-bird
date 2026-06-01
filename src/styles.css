@@ -1,10 +1,13 @@
 @import "tailwindcss";
 
-/* Tell every browser that this page handles its own dark mode.
-   Prevents Samsung Internet / Chrome force-dark from applying a
-   second dark overlay on top of our theme. */
 :root {
   color-scheme: light dark;
+}
+
+/* Full-viewport shell — inner chat area scrolls, page does not */
+.app-shell {
+  height: 100vh;
+  height: 100svh;
 }
 
 body {
