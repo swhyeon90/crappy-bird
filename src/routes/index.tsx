@@ -256,33 +256,32 @@ function App() {
     <div style={{ minHeight: '100vh', background: T.pageBg, display: 'flex', flexDirection: 'column' }}>
 
       {/*
-       * Inline SVG filter defs — referenced by the bird img below.
+       * Inline SVG colour-remap filters — no transparency used.
        *
-       * feColorMatrix trick: set alpha = 1 − R  (works for B&W images where R=G=B).
-       *   white pixel (R=1) → alpha 0  →  transparent  (PNG bg disappears)
-       *   black pixel (R=0) → alpha 1  →  fully opaque
+       * Previous approach made white pixels alpha=0 (transparent).
+       * On mobile the GPU compositing layer clears to black, so transparent
+       * pixels showed black instead of the page background. Fix: keep every
+       * pixel fully opaque by remapping white → exact page bg colour.
        *
-       * Light filter: keeps RGB, makes white transparent.
-       * Dark filter:  inverts RGB first (black ink → white), then same alpha rule.
+       * Light (#f0ede8 = 0.941 / 0.929 / 0.910):
+       *   newChannel = input × bg_channel
+       *   black ink (0) → 0          (stays black on light bg)
+       *   white bg  (1) → bg_channel (blends into page)
        *
-       * No mix-blend-mode needed — the PNG background is made truly transparent,
-       * so the bird sits cleanly on any background including dark mode on mobile.
+       * Dark (#1c1814 = 0.110 / 0.094 / 0.078):
+       *   newChannel = 1 − (1 − bg_channel) × input
+       *   black ink (0) → 1          (becomes white, visible on dark bg)
+       *   white bg  (1) → bg_channel (blends into page)
+       *
+       * Alpha row kept as-is (all pixels remain fully opaque).
        */}
-      <svg aria-hidden focusable="false" style={{ position: 'absolute', width: 0, height: 0 }}>
+      <svg aria-hidden focusable="false" style={{ position: 'absolute', width: 0, height: 0, overflow: 'hidden' }}>
         <defs>
-          <filter id="bird-filter-light">
-            <feColorMatrix type="matrix"
-              values="1  0  0  0  0
-                      0  1  0  0  0
-                      0  0  1  0  0
-                      -1 0  0  0  1" />
+          <filter id="bird-filter-light" x="0" y="0" width="100%" height="100%">
+            <feColorMatrix type="matrix" values="0.941 0 0 0 0  0 0.929 0 0 0  0 0 0.910 0 0  0 0 0 1 0" />
           </filter>
-          <filter id="bird-filter-dark">
-            <feColorMatrix type="matrix"
-              values="-1 0  0  0  1
-                      0  -1 0  0  1
-                      0  0  -1 0  1
-                      -1 0  0  0  1" />
+          <filter id="bird-filter-dark" x="0" y="0" width="100%" height="100%">
+            <feColorMatrix type="matrix" values="-0.890 0 0 0 1  0 -0.906 0 0 1  0 0 -0.922 0 1  0 0 0 1 0" />
           </filter>
         </defs>
       </svg>
