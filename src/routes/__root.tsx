@@ -17,6 +17,13 @@ export const Route = createRootRoute({
         content: 'width=device-width, initial-scale=1',
       },
       {
+        /* Declare native dark-mode support so browsers (Samsung Internet,
+           Chrome Android force-dark, etc.) do NOT apply their own dark
+           overlay on top of our theme. */
+        name: 'color-scheme',
+        content: 'light dark',
+      },
+      {
         title: 'Crappy Bird',
       },
     ],
